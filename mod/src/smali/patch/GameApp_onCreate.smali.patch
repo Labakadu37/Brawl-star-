@@ -1,0 +1,26 @@
+# JZS Brawl - smali injection patch
+#
+# Target file (after apktool d base.apk):
+#     smali/com/supercell/titan/GameApp.smali
+#
+# What it does:
+#     Adds an invoke-static to com.jzs.brawl.JZSInit.install(this) at the
+#     end of GameApp.onCreate(Landroid/os/Bundle;)V, so that our overlay
+#     TextView "JZS V1 (lastest)" is drawn on top of the Titan surface.
+#
+# Instructions:
+#     1. apktool d com.supercell.brawlstars.apk -o work/
+#     2. Open work/smali/com/supercell/titan/GameApp.smali
+#     3. Locate the method:
+#            .method public onCreate(Landroid/os/Bundle;)V
+#        find the LAST `return-void` inside that method body and INSERT
+#        the two lines below IMMEDIATELY BEFORE that `return-void`.
+#     4. Copy compiled com/jzs/brawl/*.smali into work/smali/ preserving
+#        package layout (see build/build_mod.sh which does this for you).
+#     5. Copy libjz.so into work/lib/<abi>/libjz.so for each ABI.
+#     6. apktool b work/ -o jzs-brawl-unsigned.apk
+#     7. zipalign + apksigner (see build/build_mod.sh).
+
+# --- BEGIN INJECTION (insert before final return-void of onCreate) ---
+    invoke-static {p0}, Lcom/jzs/brawl/JZSInit;->install(Landroid/app/Activity;)V
+# --- END INJECTION ---
