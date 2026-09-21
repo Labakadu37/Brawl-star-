@@ -10,20 +10,14 @@ if [ -z "$APK" ]; then
     exit 1
 fi
 
-OUT="jzs-brawl-v1.apk"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-echo "[1/4] Copie de l'APK..."
-cp "$APK" "$OUT"
+echo "[1/2] Patch de l'APK avec patch_jzs.py..."
+python3 "$SCRIPT_DIR/patch_jzs.py" "$APK"
 
-echo "[2/4] Decodage du classes4.dex patche..."
-base64 -d "$SCRIPT_DIR/classes4_jzs.b64" > /tmp/classes4.dex
+OUT="jzs-brawl-v1.apk"
 
-echo "[3/4] Remplacement dans l'APK..."
-cd /tmp && zip -j "$(cd - > /dev/null && pwd)/$OUT" classes4.dex
-rm /tmp/classes4.dex
-
-echo "[4/4] Signature..."
+echo "[2/2] Signature..."
 if command -v apksigner &> /dev/null; then
     if [ ! -f jzs.keystore ]; then
         echo "    Generation de la cle..."
@@ -34,10 +28,18 @@ if command -v apksigner &> /dev/null; then
     fi
     apksigner sign --ks jzs.keystore --ks-key-alias jzs \
         --ks-pass pass:jzsbrawl --key-pass pass:jzsbrawl "$OUT"
-    echo "    APK signe!"
+    if command -v zipalign &> /dev/null; then
+        zipalign -f 4 "$OUT" "${OUT%.apk}-aligned.apk"
+        mv "${OUT%.apk}-aligned.apk" "$OUT"
+        echo "    APK signe et aligne!"
+    else
+        echo "    APK signe! (zipalign non trouve, fais-le manuellement)"
+    fi
 else
     echo "    apksigner non trouve. Signe manuellement:"
+    echo "    keytool -genkey -v -keystore jzs.keystore -alias jzs -keyalg RSA -keysize 2048 -validity 10000"
     echo "    apksigner sign --ks jzs.keystore --ks-key-alias jzs $OUT"
+    echo "    zipalign -f 4 $OUT jzs-brawl-v1-aligned.apk"
 fi
 
 echo ""
