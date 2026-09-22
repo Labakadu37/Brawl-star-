@@ -1367,8 +1367,11 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     return 0x00010006;
 }
 
-/* ===================== EXPORTED RENDER SYMBOL ===================== */
+/* ===================== EXPORTED RENDER SYMBOLS ===================== */
+__attribute__((visibility("default")))
+void hern_hazard_render(void) {
+}
+
 __attribute__((visibility("default")))
 void jzs_hazard_render(void) {
-    /* Required by Java side (called from mod menu) */
 }
