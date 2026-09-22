@@ -473,6 +473,15 @@ static uintptr_t find_lib_base(const char *lib_name) {
 }
 
 /* ===================== INLINE HOOK (ARM64) ===================== */
+static int write_mem_proc(uintptr_t addr, const void *data, size_t len) {
+    int fd = open("/proc/self/mem", O_RDWR);
+    if (fd < 0) return 0;
+    if (lseek(fd, (off_t)addr, SEEK_SET) == (off_t)-1) { close(fd); return 0; }
+    ssize_t w = write(fd, data, len);
+    close(fd);
+    return w == (ssize_t)len;
+}
+
 static int hook_func(uintptr_t target, void *replacement, void **orig_out) {
     uint32_t saved[4];
     memcpy(saved, (void*)target, 16);
@@ -489,17 +498,45 @@ static int hook_func(uintptr_t target, void *replacement, void **orig_out) {
 
     if (orig_out) *orig_out = tramp;
 
-    if (!mem_protect(target, 16, PROT_READ | PROT_WRITE | PROT_EXEC))
-        return 0;
+    /* Build the hook: LDR X16, [PC, #8]; BR X16; <replacement addr> */
+    uint8_t hook_code[16];
+    uint32_t *hc = (uint32_t*)hook_code;
+    hc[0] = 0x58000050;  /* LDR X16, [PC, #8] */
+    hc[1] = 0xD61F0200;  /* BR X16 */
+    *(uintptr_t*)&hc[2] = (uintptr_t)replacement;
 
-    uint32_t *dst = (uint32_t*)target;
-    dst[0] = 0x58000050;
-    dst[1] = 0xD61F0200;
-    *(uintptr_t*)&dst[2] = (uintptr_t)replacement;
+    /* Method 1: Try mprotect + direct write */
+    if (mem_protect(target, 16, PROT_READ | PROT_WRITE | PROT_EXEC)) {
+        memcpy((void*)target, hook_code, 16);
+        __builtin___clear_cache((char*)target, (char*)(target + 16));
+        mem_protect(target, 16, PROT_READ | PROT_EXEC);
+        return 1;
+    }
 
-    __builtin___clear_cache((char*)target, (char*)(target + 16));
-    mem_protect(target, 16, PROT_READ | PROT_EXEC);
-    return 1;
+    /* Method 2: /proc/self/mem bypasses page protections */
+    if (write_mem_proc(target, hook_code, 16)) {
+        __builtin___clear_cache((char*)target, (char*)(target + 16));
+        return 1;
+    }
+
+    /* Method 3: mmap MAP_FIXED to replace the page */
+    {
+        uintptr_t page = target & ~0xFFFUL;
+        size_t off = target - page;
+        uint8_t page_backup[4096];
+        memcpy(page_backup, (void*)page, 4096);
+        void *p = mmap((void*)page, 4096, PROT_READ | PROT_WRITE | PROT_EXEC,
+                       MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+        if (p == (void*)page) {
+            memcpy(p, page_backup, 4096);
+            memcpy((uint8_t*)p + off, hook_code, 16);
+            __builtin___clear_cache((char*)target, (char*)(target + 16));
+            mprotect(p, 4096, PROT_READ | PROT_EXEC);
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 /* ===================== INTEGRITY CHECK ===================== */
@@ -1328,11 +1365,22 @@ static void resolve_game_functions(uintptr_t base) {
 
 /* ===================== AIMBOT FIRE (uses game functions) ===================== */
 static void aimbot_fire(void) {
-    if (!g_aura_on || !g_aim_active || !g_battle_screen || !gf.killauraFire) return;
+    if (!g_aim_active || !g_battle_screen) return;
+    if (!g_aimbot_on && !g_aura_on) return;
 
-    int aim_x = (int)g_aim_pos[0];
-    int aim_y = (int)g_aim_pos[1];
-    gf.killauraFire(g_battle_screen, aim_x, aim_y);
+    if (gf.killauraFire) {
+        int aim_x = (int)g_aim_pos[0];
+        int aim_y = (int)g_aim_pos[1];
+        gf.killauraFire(g_battle_screen, aim_x, aim_y);
+        return;
+    }
+
+    if (gf.setMoveTo && gf.activateSkill) {
+        int aim_x = (int)g_aim_pos[0];
+        int aim_y = (int)g_aim_pos[1];
+        gf.setMoveTo(g_battle_mode, aim_x, aim_y);
+        gf.activateSkill(g_battle_screen, 0);
+    }
 }
 
 /* ===================== BATTLE UPDATE HOOK ===================== */
@@ -1365,6 +1413,7 @@ static void hooked_battle_update(uintptr_t self) {
 
     if (g_enabled && g_aim_active) {
         aimbot_fire();
+        __sync_fetch_and_add(&g_cnt_aim, 1);
     }
 }
 
@@ -1394,16 +1443,23 @@ static uint32_t diag_prng(void) {
 }
 
 static void write_diagnostics(void) {
-    char buf[512];
+    char buf[1024];
     int len = snprintf(buf, sizeof(buf),
         "jzs diag: frames=%llu aim=%llu err=%llu spin=%llu "
-        "entities=%llu tracked=%d bullets=%d error=%d\n",
+        "entities=%llu tracked=%d bullets=%d error=%d "
+        "aimbot=%d aura=%d enabled=%d aim_active=%d "
+        "battle_mode=%lx battle_screen=%lx "
+        "player=%.0f,%.0f team=%u hook=%s\n",
         (unsigned long long)g_cnt_frames,
         (unsigned long long)g_cnt_aim,
         (unsigned long long)g_cnt_err,
         (unsigned long long)g_cnt_spinner,
         (unsigned long long)g_entity_count,
-        g_track_count, g_bullet_count, g_last_error);
+        g_track_count, g_bullet_count, g_last_error,
+        g_aimbot_on, g_aura_on, g_enabled, g_aim_active,
+        (unsigned long)g_battle_mode, (unsigned long)g_battle_screen,
+        g_player_pos[0], g_player_pos[1], g_player_team,
+        g_orig_battle_update ? "ok" : "none");
     file_write(DIAG_PATH, buf, len);
     __sync_fetch_and_add(&g_diag_counter, 1);
 }
@@ -1471,10 +1527,19 @@ static void *engine_thread(void *arg) {
     /* Phase 6: Hook LogicBattleModeClient::update for aimbot/killaura */
     {
         uintptr_t update_addr = game_base + OFF_BATTLE_UPDATE;
-        if (hook_func(update_addr, (void*)hooked_battle_update, &g_orig_battle_update))
+        char dbuf[256];
+        int dlen = snprintf(dbuf, sizeof(dbuf),
+            "jzs: hooking battle at %lx (base=%lx off=%x)\n",
+            (unsigned long)update_addr, (unsigned long)game_base, OFF_BATTLE_UPDATE);
+        file_append(DIAG_PATH, dbuf, dlen);
+
+        if (hook_func(update_addr, (void*)hooked_battle_update, &g_orig_battle_update)) {
             file_append(DIAG_PATH, "jzs: battle hook ok\n", 20);
-        else
-            file_append(DIAG_PATH, "jzs: battle hook fail\n", 22);
+        } else {
+            dlen = snprintf(dbuf, sizeof(dbuf),
+                "jzs: battle hook FAIL errno=%d\n", errno);
+            file_append(DIAG_PATH, dbuf, dlen);
+        }
     }
 
     /* Phase 7: Initialize GL + hook eglSwapBuffers */
