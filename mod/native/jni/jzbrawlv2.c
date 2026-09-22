@@ -31,7 +31,7 @@
 #define DIAG_PATH  CFG_DIR "/diag.txt"
 #define MAPS_PATH  "/proc/self/maps"
 
-/* ===================== GAME OFFSETS ===================== */
+/* ===================== GAME OFFSETS (v2 - Sept 2026) ===================== */
 #define OFF_VERIFY1       0x00F83FD8
 #define OFF_VERIFY2       0x01348B38
 #define OFF_MAIN_HOOK     0x012E0A30
@@ -45,6 +45,30 @@
 #define INTEGRITY_W1      0xA9017BFD
 #define INTEGRITY_W2      0xF90013F5
 #define INTEGRITY_W3      0xA9034FF4
+
+/* ===================== GAME FUNCTION OFFSETS (NEW RVA) ===================== */
+#define OFF_BATTLE_UPDATE           0xB8EEE0
+#define OFF_BATTLEMODE_GETINST      0x954EE0
+#define OFF_GETX                    0xAE4A1C
+#define OFF_GETY                    0xAE4A24
+#define OFF_GET_OWN_CHAR            0xB90A28
+#define OFF_ACTIVATE_SKILL          0x80274C
+#define OFF_GET_OWN_TEAM            0xB90680
+#define OFF_GET_GLOBAL_ID           0xAE49C8
+#define OFF_GET_DATA                0xAE46FC
+#define OFF_PROJ_GET_RADIUS         0xA8164C
+#define OFF_PROJ_GET_SPEED          0xA815CC
+#define OFF_CHAR_COLLISION_RADIUS   0xA3B52C
+#define OFF_CLIENT_INPUT_CTOR       0xB53A68
+#define OFF_ADD_INPUT               0x79BF3C
+#define OFF_SET_MOVE_TO             0xB90B8C
+#define OFF_VTABLE_PROJ_DATA        0x11501B0
+#define OFF_GET_TILE_MAP            0xB909A8
+#define OFF_UPDATE_AUTOSHOOT        0x8076A0
+#define OFF_UPDATE_MOVEMENT         0x809348
+#define OFF_GET_LOGIC_BATTLE        0x818BCC
+#define OFF_IS_BEAM                 0xA81770
+#define OFF_KILLAURA_FIRE           0x802960
 
 /* ===================== TABLE OFFSETS (in-lib data) ===================== */
 #define NAME_TBL1_OFF     0x89d38
@@ -218,6 +242,51 @@ static volatile uint64_t  g_cnt_spinner   = 0;
 
 /* Hook originals */
 static void *g_orig_swap = NULL;
+static void *g_orig_battle_update = NULL;
+
+/* ===================== GAME FUNCTION POINTERS ===================== */
+typedef uintptr_t (*fn_battlemode_getInstance)(void);
+typedef uintptr_t (*fn_getOwnCharacter)(uintptr_t battleMode);
+typedef int       (*fn_getOwnPlayerTeam)(uintptr_t battleMode);
+typedef int       (*fn_getX)(uintptr_t obj);
+typedef int       (*fn_getY)(uintptr_t obj);
+typedef int       (*fn_getGlobalID)(uintptr_t obj);
+typedef uintptr_t (*fn_getData)(uintptr_t obj);
+typedef float     (*fn_projGetRadius)(uintptr_t data);
+typedef float     (*fn_projGetSpeed)(uintptr_t data);
+typedef float     (*fn_charCollisionRadius)(uintptr_t data);
+typedef int       (*fn_isBeam)(uintptr_t data);
+typedef uintptr_t (*fn_getTileMap)(uintptr_t battleMode);
+typedef void      (*fn_activateSkill)(uintptr_t screen, int skillIdx);
+typedef void      (*fn_setMoveTo)(uintptr_t battleMode, int x, int y);
+typedef uintptr_t (*fn_clientInputCtor)(uintptr_t mem, int type);
+typedef void      (*fn_addInput)(uintptr_t mgr, uintptr_t input);
+typedef uintptr_t (*fn_getLogicBattle)(uintptr_t screen);
+typedef void      (*fn_killauraFire)(uintptr_t screen, int x, int y);
+
+static struct {
+    fn_battlemode_getInstance   getInstance;
+    fn_getOwnCharacter          getOwnChar;
+    fn_getOwnPlayerTeam         getOwnTeam;
+    fn_getX                     getX;
+    fn_getY                     getY;
+    fn_getGlobalID              getGlobalID;
+    fn_getData                  getData;
+    fn_projGetRadius            projRadius;
+    fn_projGetSpeed             projSpeed;
+    fn_charCollisionRadius      charRadius;
+    fn_isBeam                   isBeam;
+    fn_getTileMap               getTileMap;
+    fn_activateSkill            activateSkill;
+    fn_setMoveTo                setMoveTo;
+    fn_clientInputCtor          inputCtor;
+    fn_addInput                 addInput;
+    fn_getLogicBattle           getLogicBattle;
+    fn_killauraFire             killauraFire;
+} gf;
+
+static volatile uintptr_t g_battle_screen = 0;
+static volatile uintptr_t g_battle_mode   = 0;
 
 /* ===================== GL TYPES & POINTERS ===================== */
 typedef unsigned int GLenum;
@@ -1218,6 +1287,70 @@ static void render_esp(int screen_w, int screen_h) {
     gl.Disable(0x0BE2);
 }
 
+/* ===================== RESOLVE GAME FUNCTIONS ===================== */
+static void resolve_game_functions(uintptr_t base) {
+    gf.getInstance    = (fn_battlemode_getInstance)(base + OFF_BATTLEMODE_GETINST);
+    gf.getOwnChar     = (fn_getOwnCharacter)(base + OFF_GET_OWN_CHAR);
+    gf.getOwnTeam     = (fn_getOwnPlayerTeam)(base + OFF_GET_OWN_TEAM);
+    gf.getX            = (fn_getX)(base + OFF_GETX);
+    gf.getY            = (fn_getY)(base + OFF_GETY);
+    gf.getGlobalID     = (fn_getGlobalID)(base + OFF_GET_GLOBAL_ID);
+    gf.getData         = (fn_getData)(base + OFF_GET_DATA);
+    gf.projRadius      = (fn_projGetRadius)(base + OFF_PROJ_GET_RADIUS);
+    gf.projSpeed       = (fn_projGetSpeed)(base + OFF_PROJ_GET_SPEED);
+    gf.charRadius      = (fn_charCollisionRadius)(base + OFF_CHAR_COLLISION_RADIUS);
+    gf.isBeam          = (fn_isBeam)(base + OFF_IS_BEAM);
+    gf.getTileMap      = (fn_getTileMap)(base + OFF_GET_TILE_MAP);
+    gf.activateSkill   = (fn_activateSkill)(base + OFF_ACTIVATE_SKILL);
+    gf.setMoveTo       = (fn_setMoveTo)(base + OFF_SET_MOVE_TO);
+    gf.inputCtor       = (fn_clientInputCtor)(base + OFF_CLIENT_INPUT_CTOR);
+    gf.addInput        = (fn_addInput)(base + OFF_ADD_INPUT);
+    gf.getLogicBattle  = (fn_getLogicBattle)(base + OFF_GET_LOGIC_BATTLE);
+    gf.killauraFire    = (fn_killauraFire)(base + OFF_KILLAURA_FIRE);
+}
+
+/* ===================== AIMBOT FIRE (uses game functions) ===================== */
+static void aimbot_fire(void) {
+    if (!g_aim_active || !g_battle_screen || !gf.killauraFire) return;
+
+    int aim_x = (int)g_aim_pos[0];
+    int aim_y = (int)g_aim_pos[1];
+    gf.killauraFire(g_battle_screen, aim_x, aim_y);
+}
+
+/* ===================== BATTLE UPDATE HOOK ===================== */
+typedef void (*fn_battle_update_orig)(uintptr_t self);
+
+static void hooked_battle_update(uintptr_t self) {
+    g_battle_mode = self;
+
+    if (g_enabled && gf.getOwnChar && gf.getX && gf.getY && gf.getOwnTeam) {
+        uintptr_t own_char = gf.getOwnChar(self);
+        if (own_char) {
+            int px = gf.getX(own_char);
+            int py = gf.getY(own_char);
+            g_player_pos[0] = (float)px;
+            g_player_pos[1] = (float)py;
+            g_player_ptr = own_char;
+            g_player_team = (uint32_t)gf.getOwnTeam(self);
+        }
+    }
+
+    /* Resolve BattleScreen from member offset 0x20 of BattleMode */
+    if (!g_battle_screen && self) {
+        uintptr_t screen = 0;
+        mem_read(self + 0x20, &screen, sizeof(screen));
+        if (screen) g_battle_screen = screen;
+    }
+
+    fn_battle_update_orig orig = (fn_battle_update_orig)g_orig_battle_update;
+    if (orig) orig(self);
+
+    if (g_enabled && g_aim_active) {
+        aimbot_fire();
+    }
+}
+
 /* ===================== eglSwapBuffers HOOK ===================== */
 static unsigned int hooked_swapBuffers(void *dpy, void *surface) {
     __sync_fetch_and_add(&g_cnt_frames, 1);
@@ -1314,7 +1447,20 @@ static void *engine_thread(void *arg) {
         usleep(SLEEP_US);
     }
 
-    /* Phase 5: Initialize GL + hook eglSwapBuffers */
+    /* Phase 5: Resolve game function pointers */
+    resolve_game_functions(game_base);
+    file_append(DIAG_PATH, "jzs: funcs resolved\n", 20);
+
+    /* Phase 6: Hook LogicBattleModeClient::update for aimbot/killaura */
+    {
+        uintptr_t update_addr = game_base + OFF_BATTLE_UPDATE;
+        if (hook_func(update_addr, (void*)hooked_battle_update, &g_orig_battle_update))
+            file_append(DIAG_PATH, "jzs: battle hook ok\n", 20);
+        else
+            file_append(DIAG_PATH, "jzs: battle hook fail\n", 22);
+    }
+
+    /* Phase 7: Initialize GL + hook eglSwapBuffers */
     if (init_gl_functions()) {
         file_append(DIAG_PATH, "jzs: GL ok\n", 11);
         init_shaders();
@@ -1328,7 +1474,7 @@ static void *engine_thread(void *arg) {
         file_append(DIAG_PATH, "jzs: GL fail\n", 13);
     }
 
-    /* Phase 6: Set default world scale */
+    /* Phase 8: Set default world scale */
     g_world_scale_x = 0.02f;
     g_world_scale_y = 0.02f;
 
@@ -1343,7 +1489,19 @@ static void *engine_thread(void *arg) {
         if (g_enabled) {
             collect_entities();
             update_tracking();
-            find_single_target(2000.0f);
+
+            float proj_spd = 2000.0f;
+            if (g_battle_mode && gf.getOwnChar && gf.getData && gf.projSpeed) {
+                uintptr_t own = gf.getOwnChar(g_battle_mode);
+                if (own) {
+                    uintptr_t data = gf.getData(own);
+                    if (data) {
+                        float spd = gf.projSpeed(data);
+                        if (spd > 0.0f) proj_spd = spd;
+                    }
+                }
+            }
+            find_single_target(proj_spd);
             detect_spinner_bullets();
         }
 
@@ -1374,4 +1532,10 @@ void hern_hazard_render(void) {
 
 __attribute__((visibility("default")))
 void jzs_hazard_render(void) {
+}
+
+/* Called from Java to pass the BattleScreen pointer */
+__attribute__((visibility("default")))
+void jzs_set_battle_screen(uintptr_t screen) {
+    g_battle_screen = screen;
 }
