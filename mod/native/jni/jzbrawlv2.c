@@ -189,16 +189,20 @@ static volatile uintptr_t g_base        = 0;
 static volatile uintptr_t g_game_base   = 0;
 static volatile pid_t     g_pid         = 0;
 static char               g_name[256];
-static volatile uint8_t   g_enabled     = 0;
+static volatile uint8_t   g_enabled     = 1;
 static volatile uint64_t  g_start_ms    = 0;
 
-/* Config flags */
+/* Config flags (keys must match mod menu: jzaim, jzaura, aurawall, jzgadget, etc.) */
 static volatile int       g_flags       = 0;
 static volatile int       g_fps         = 0;
+static volatile uint8_t   g_aimbot_on   = 1;
+static volatile uint8_t   g_aura_on     = 0;
+static volatile uint8_t   g_aurawall_on = 0;
 static volatile uint8_t   g_gadget_on   = 0;
-static volatile uint8_t   g_haz_on      = 0;
-static volatile uint8_t   g_spinner_on  = 0;
 static volatile uint8_t   g_stealth_on  = 0;
+static volatile uint8_t   g_dodge_on    = 0;
+static volatile uint8_t   g_spinner_on  = 0;
+static volatile uint8_t   g_haz_on      = 0;
 
 /* Entity data */
 static volatile uint64_t  g_entity_count = 0;
@@ -376,12 +380,17 @@ static int file_read_int(const char *p) {
     return atoi(b);
 }
 
-static void file_read_str(const char *p, char *out, int mx) {
+static int file_read_str(const char *p, char *out, int mx) {
     int fd = open(p, O_RDONLY);
-    if (fd < 0) { out[0] = 0; return; }
+    if (fd < 0) { out[0] = 0; return 0; }
     int n = read(fd, out, mx - 1);
     close(fd);
-    if (n > 0) out[n] = 0; else out[0] = 0;
+    if (n > 0) out[n] = 0; else { out[0] = 0; return 0; }
+    return n;
+}
+
+static void file_read_line(const char *p, char *out, int mx) {
+    file_read_str(p, out, mx);
     for (int i = 0; out[i]; i++)
         if (out[i] == '\n' || out[i] == '\r') { out[i] = 0; break; }
 }
@@ -621,25 +630,33 @@ static int parse_config_flag(const char *buf, const char *key) {
 }
 
 static void reload_config(void) {
-    g_flags = file_read_int(FLAGS_PATH);
     g_fps = file_read_int(FPS_PATH);
-    file_read_str(NAME_PATH, g_name, sizeof(g_name));
-    g_enabled = (g_flags > 0) ? 1 : 0;
+    file_read_line(NAME_PATH, g_name, sizeof(g_name));
 
-    char cfg_buf[512] = {0};
-    char cfg_path[256];
-    snprintf(cfg_path, sizeof(cfg_path), "%s/config.txt", CFG_DIR);
-    file_read_str(cfg_path, cfg_buf, sizeof(cfg_buf));
+    char cfg_buf[2048] = {0};
+    int has_cfg = file_read_str(FLAGS_PATH, cfg_buf, sizeof(cfg_buf));
 
-    int v;
-    v = parse_config_flag(cfg_buf, "jzsgadget");
-    if (v >= 0) g_gadget_on = (uint8_t)v;
-    v = parse_config_flag(cfg_buf, "jzshaz");
-    if (v >= 0) g_haz_on = (uint8_t)v;
-    v = parse_config_flag(cfg_buf, "jzsspinners");
-    if (v >= 0) g_spinner_on = (uint8_t)v;
-    v = parse_config_flag(cfg_buf, "jzsstealthar");
-    if (v >= 0) g_stealth_on = (uint8_t)v;
+    if (has_cfg > 0 && cfg_buf[0]) {
+        int v;
+        v = parse_config_flag(cfg_buf, "jzaim");
+        if (v >= 0) g_aimbot_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzaura");
+        if (v >= 0) g_aura_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "aurawall");
+        if (v >= 0) g_aurawall_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzgadget");
+        if (v >= 0) g_gadget_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzstealth");
+        if (v >= 0) g_stealth_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzdodge");
+        if (v >= 0) g_dodge_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzspinner");
+        if (v >= 0) g_spinner_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzhaz");
+        if (v >= 0) g_haz_on = (uint8_t)v;
+        g_enabled = (g_aimbot_on || g_aura_on || g_gadget_on ||
+                     g_dodge_on || g_spinner_on || g_haz_on) ? 1 : 0;
+    }
 }
 
 /* ===================== DISTANCE ===================== */
@@ -968,7 +985,7 @@ static void update_tracking(void) {
 
 /* ===================== SINGLE-TARGET AIMBOT ===================== */
 static void find_single_target(float proj_speed) {
-    if (!g_enabled || g_entity_count == 0) return;
+    if (!g_aimbot_on || g_entity_count == 0) return;
 
     uint64_t now = get_time_ms();
     float best_score = 999999.0f;
@@ -1311,7 +1328,7 @@ static void resolve_game_functions(uintptr_t base) {
 
 /* ===================== AIMBOT FIRE (uses game functions) ===================== */
 static void aimbot_fire(void) {
-    if (!g_aim_active || !g_battle_screen || !gf.killauraFire) return;
+    if (!g_aura_on || !g_aim_active || !g_battle_screen || !gf.killauraFire) return;
 
     int aim_x = (int)g_aim_pos[0];
     int aim_y = (int)g_aim_pos[1];
