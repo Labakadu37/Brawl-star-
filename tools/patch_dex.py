@@ -1,20 +1,37 @@
 #!/usr/bin/env python3
 """
 JZS Brawl - DEX binary patcher
-Replaces encoded library name in DEX files (same-length swap).
-No Java/baksmali needed.
+Replaces library name and branding in DEX files.
+Supports: XOR-encoded hex strings AND plain text strings.
+Same-length swap only (no offset recalculation needed).
 """
 import struct
 import hashlib
 import sys
 import os
 
-OLD_ENCODED = b"dcf098a54a7b0f38c0fbd0"   # hernbrawlv2
-NEW_ENCODED = b"deef99944a7b0f38c0fbd0"   # jzs_brawlv2
+def xor_encode(text):
+    out = ""
+    for i, b in enumerate(text.encode("utf-8")):
+        key = ((i * 0x1f) + 0x11) & 0xff
+        key ^= 0xa5
+        out += format(b ^ key, "02x")
+    return out
 
-BRANDING_OLD = [
-    (b"HernBrawl", b"JZSxBrawl"),
-    (b"Hern Brawl", b"JZS  Brawl"),
+OLD_LIB = "hernbrawlv2"
+NEW_LIB = "jzs_brawlv2"
+
+OLD_ENCODED = xor_encode(OLD_LIB).encode()
+NEW_ENCODED = xor_encode(NEW_LIB).encode()
+
+REPLACEMENTS = [
+    # XOR-encoded lib name (same length: 22 hex chars each)
+    (OLD_ENCODED, NEW_ENCODED),
+    # Plain text lib name (same length: 11 chars each)
+    (OLD_LIB.encode(), NEW_LIB.encode()),
+    # Same-length branding swaps
+    (b"HernBrawl", b"JZS Brawl"),
+    (b"hernbrawl", b"jzsbrawl\x00"),
 ]
 
 def adler32(data):
@@ -24,7 +41,7 @@ def adler32(data):
         b = (b + a) % 65521
     return (b << 16) | a
 
-def patch_dex(filepath):
+def patch_dex(filepath, verbose=False):
     with open(filepath, "rb") as f:
         data = bytearray(f.read())
 
@@ -32,27 +49,22 @@ def patch_dex(filepath):
         return False, "not a DEX file"
 
     count = 0
+    details = []
 
-    pos = 0
-    while True:
-        idx = data.find(OLD_ENCODED, pos)
-        if idx < 0:
-            break
-        data[idx:idx + len(OLD_ENCODED)] = NEW_ENCODED
-        count += 1
-        pos = idx + len(NEW_ENCODED)
-
-    for old_brand, new_brand in BRANDING_OLD:
-        if len(old_brand) != len(new_brand):
+    for old, new in REPLACEMENTS:
+        if len(old) != len(new):
+            if verbose:
+                details.append(f"  WARN: skip {old!r}->{new!r} (length mismatch {len(old)}!={len(new)})")
             continue
         pos = 0
         while True:
-            idx = data.find(old_brand, pos)
+            idx = data.find(old, pos)
             if idx < 0:
                 break
-            data[idx:idx + len(old_brand)] = new_brand
+            data[idx:idx + len(old)] = new
             count += 1
-            pos = idx + len(new_brand)
+            details.append(f"  @0x{idx:x}: {old!r} -> {new!r}")
+            pos = idx + len(new)
 
     if count == 0:
         return False, "no matches"
@@ -66,19 +78,53 @@ def patch_dex(filepath):
     with open(filepath, "wb") as f:
         f.write(data)
 
-    return True, f"{count} replacements"
+    msg = f"{count} replacements"
+    if verbose and details:
+        msg += "\n" + "\n".join(details)
+    return True, msg
+
+def scan_dex(filepath):
+    """Scan a DEX file for any hern-related strings (diagnostic)."""
+    with open(filepath, "rb") as f:
+        data = f.read()
+
+    targets = [b"hern", b"Hern", b"HERN", b"brawlv2", b"brawlv", OLD_ENCODED]
+    finds = []
+    for t in targets:
+        pos = 0
+        while True:
+            idx = data.find(t, pos)
+            if idx < 0:
+                break
+            context = data[max(0,idx-4):idx+len(t)+8]
+            finds.append(f"  @0x{idx:x}: found {t!r} ctx={context!r}")
+            pos = idx + len(t)
+    return finds
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 patch_dex.py <file.dex> [file2.dex ...]")
+        print("Usage: python3 patch_dex.py [--scan] <file.dex> [file2.dex ...]")
         sys.exit(1)
 
-    for path in sys.argv[1:]:
+    scan_mode = "--scan" in sys.argv
+    files = [a for a in sys.argv[1:] if not a.startswith("--")]
+
+    for path in files:
         if not os.path.exists(path):
             print(f"  SKIP {path}: not found")
             continue
-        ok, msg = patch_dex(path)
-        if ok:
-            print(f"  OK   {os.path.basename(path)}: {msg}")
+
+        if scan_mode:
+            print(f"  SCAN {os.path.basename(path)}:")
+            finds = scan_dex(path)
+            if finds:
+                for f in finds:
+                    print(f)
+            else:
+                print("    (nothing found)")
         else:
-            print(f"  SKIP {os.path.basename(path)}: {msg}")
+            ok, msg = patch_dex(path, verbose=True)
+            if ok:
+                print(f"  OK   {os.path.basename(path)}: {msg}")
+            else:
+                print(f"  SKIP {os.path.basename(path)}: {msg}")
