@@ -30,6 +30,7 @@ build/
 └── inject_overlay.py             idempotent smali injector
 
 docs/
+├── index.html                    site web (GitHub Pages : Settings → Pages → /docs)
 ├── SETUP.md                      tooling install
 ├── BUILD.md                      how the pipeline works step by step
 └── INSTALL.md                    installing the resulting APK
