@@ -84,6 +84,31 @@ crops, install steps); replace a file with one of the same name to swap
 it.
 `docs/preview.jpg` is the link preview shown on Telegram/Discord.
 
+## Status page
+
+`status/index.html` is the page for https://status.jzbrawl.fr. It shows
+**Online** while the JZS Brawl version is the same as (or newer than) the
+current Brawl Stars version, and **Offline** as soon as Brawl Stars is
+ahead.
+
+The two versions are at the top of the file:
+
+```js
+var GAME_VERSION = "69.252";
+var MOD_VERSION = "69.252";
+```
+
+When Brawl Stars updates, change `GAME_VERSION` and the page turns
+Offline. When the new JZS Brawl is out, change `MOD_VERSION` and it turns
+Online again.
+
+Hosting on the VPS:
+
+1. Add a DNS `A` record `status` pointing to the VPS.
+2. Copy `status/index.html` to `/var/www/status/index.html`.
+3. Install `deploy/status.jzbrawl.fr.conf` as an nginx site, reload nginx,
+   then `sudo certbot --nginx -d status.jzbrawl.fr` for HTTPS.
+
 ## Legal
 
 This is a client-side, cosmetic mod for personal use. It does not touch

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>
+var GAME_VERSION = "69.252";
+var MOD_VERSION = "69.252";
+</script>
+<script>
+var JZS_ONLINE = (function (mod, game) {
+  mod = mod.split('.'); game = game.split('.');
+  for (var i = 0; i < Math.max(mod.length, game.length); i++) {
+    var d = (parseInt(mod[i], 10) || 0) - (parseInt(game[i], 10) || 0);
+    if (d) return d > 0;
+  }
+  return true;
+})(MOD_VERSION, GAME_VERSION);
+document.documentElement.className = JZS_ONLINE ? 'is-online' : 'is-offline';
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JZS Brawl Status</title>
+<meta name="description" content="Is JZS Brawl working right now? Live status of the JZS Brawl mod compared to the current Brawl Stars version.">
+<meta name="theme-color" content="#061659">
+<link rel="icon" type="image/png" sizes="32x32" href="https://jzbrawl.fr/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://jzbrawl.fr/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="https://jzbrawl.fr/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --contrast:#1E2E36;--contrast-2:#3E5560;
+  --base:#E9F0F2;--base-2:#F7FAFB;
+  --accent:#317979;--accent-2:#7FC4C4;
+  --navy:#061659;
+  --ok:#48BB78;--ok-ink:#22693F;--ok-bg:#E3F3EA;
+  --down:#F56565;--down-ink:#9B2C2C;--down-bg:#FBE7E7;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--base-2);color:var(--contrast-2);font:17px/1.7 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img{display:block;max-width:100%}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--contrast)}
+h1,h2,h3{font-weight:400;line-height:1.25;color:var(--contrast);margin:0 0 16px}
+p{margin:0 0 1.2em}
+.is-online .only-offline,.is-offline .only-online{display:none!important}
+
+.bar{max-width:1200px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.site-header{position:absolute;top:0;left:0;right:0;z-index:2}
+.site-header .bar{min-height:92px}
+.brand{display:flex;align-items:center;gap:12px;color:#fff;font-size:18px;font-weight:500}
+.brand:hover{color:#fff}
+.brand b{font-weight:700;color:var(--accent-2)}
+.brand img{width:52px;height:52px;border-radius:50%;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.links{display:flex;gap:24px}
+.links a{color:#fff;font-size:15px;font-weight:500}
+.links a:hover{color:var(--accent-2)}
+
+.hero{background:var(--navy) url(https://jzbrawl.fr/hero-bg.svg) center/cover no-repeat;color:#fff;text-align:center;padding:160px 20px 140px}
+.pill{display:inline-block;background:var(--contrast-2);border:2px solid #fff;border-radius:50px;padding:6px 22px;font-size:14px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;margin-bottom:28px}
+.state{display:flex;align-items:center;justify-content:center;gap:.4em;color:#fff;font-size:clamp(2.6rem,9vw,4rem);font-weight:600;margin-bottom:18px}
+.dot{position:relative;width:.42em;height:.42em;border-radius:50%;background:var(--ok);flex:none}
+.is-offline .dot{background:var(--down)}
+.dot::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;animation:pulse 1.8s ease-out infinite}
+@keyframes pulse{from{transform:scale(1);opacity:.7}to{transform:scale(2.6);opacity:0}}
+@media (prefers-reduced-motion:reduce){.dot::after{animation:none}}
+.lead{max-width:560px;margin:0 auto 30px;font-size:18px;letter-spacing:.02em}
+.lead strong{color:var(--accent-2);font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:10px;font-weight:600;font-size:16px;line-height:1.3;padding:14px 26px;border-radius:6px;background:var(--contrast-2);color:#fff;transition:background .15s}
+.btn:hover{background:var(--accent);color:#fff}
+.btn svg{width:18px;height:18px;flex:none}
+
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+.card{position:relative;margin-top:-80px;background:#fff;border-radius:14px;box-shadow:0 18px 50px rgba(6,22,89,.18);overflow:hidden}
+.row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 26px}
+.row+.row{border-top:1px solid #E3E8EA}
+.name{font-weight:600;color:var(--contrast);font-size:18px;line-height:1.3}
+.sub{font-size:14px}
+.right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.ver{font-weight:700;color:var(--contrast);font-variant-numeric:tabular-nums}
+.badge{display:inline-block;font-size:13px;font-weight:600;line-height:1.4;padding:4px 12px;border-radius:50px;white-space:nowrap}
+.badge.neutral{background:var(--base);color:var(--contrast-2)}
+.badge.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.badge.down{background:var(--down-bg);color:var(--down-ink)}
+
+.how{padding-top:80px;padding-bottom:90px}
+.how h2{text-align:center;font-size:clamp(1.8rem,5vw,2.3rem);margin-bottom:36px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:26px}
+.steps li{display:flex;gap:18px;align-items:flex-start}
+.num{flex:none;width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.steps h3{font-size:1.2rem;font-weight:600;margin-bottom:6px}
+.steps p{margin:0}
+.t-ok{color:var(--ok-ink)}
+.t-down{color:var(--down-ink)}
+
+.site-footer{background:#121A1E;color:var(--base);font-size:15px;padding:26px 0}
+.site-footer .bar{flex-wrap:wrap}
+.site-footer nav{display:flex;gap:22px}
+.site-footer a{color:var(--accent-2)}
+.site-footer a:hover{color:#fff}
+
+@media (max-width:560px){
+  .brand{font-size:16px;gap:10px}
+  .brand img{width:44px;height:44px}
+  .links{gap:14px}
+  .links a{font-size:14px}
+  .hero{padding:140px 20px 130px}
+  .row{flex-direction:column;align-items:flex-start;gap:8px;padding:18px 20px}
+  .right{justify-content:flex-start}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="bar">
+    <a class="brand" href="https://jzbrawl.fr/"><img src="https://jzbrawl.fr/logo.png" alt="" width="52" height="52"><span>JZS Brawl <b>Status</b></span></a>
+    <nav class="links" aria-label="Links">
+      <a href="https://jzbrawl.fr/">Website</a>
+      <a href="https://t.me/jzbrawl">Telegram</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<div class="hero">
+  <span class="pill">Live status</span>
+  <h1 class="state"><span class="dot" aria-hidden="true"></span><span class="only-online">Online</span><span class="only-offline">Offline</span></h1>
+  <p class="lead only-online">JZS Brawl works with the current version of Brawl Stars. Download it and play.</p>
+  <p class="lead only-offline">Brawl Stars was updated to <strong data-game></strong>. JZS Brawl doesn&rsquo;t support this version yet, the update is on its way.</p>
+  <p class="only-online"><a class="btn" href="https://jzbrawl.fr/JZS-Brawl.apk" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></svg>Download JZS Brawl <span data-mod></span></a></p>
+  <p class="only-offline"><a class="btn" href="https://t.me/jzbrawl"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2l-11 6.9-4.7-1.5c-1-.3-1-1 .2-1.5L20.5 3c.9-.3 1.6.2 1.4 1.3z"/></svg>Get notified on Telegram</a></p>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="row">
+      <div><div class="name">Brawl Stars</div><div class="sub">Current official version</div></div>
+      <div class="right"><span class="ver" data-game></span><span class="badge neutral">Official</span></div>
+    </div>
+    <div class="row">
+      <div><div class="name">JZS Brawl</div><div class="sub">Latest mod version</div></div>
+      <div class="right"><span class="ver" data-mod></span><span class="badge ok only-online">Up to date</span><span class="badge down only-offline">Update in progress</span></div>
+    </div>
+  </div>
+</div>
+
+<section class="wrap how">
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li><span class="num">1</span><div><h3>Brawl Stars updates</h3><p>When Supercell releases a new Brawl Stars version, JZS Brawl needs an update and the status turns <b class="t-down">Offline</b>.</p></div></li>
+    <li><span class="num">2</span><div><h3>We update JZS Brawl</h3><p>The JZS team adapts the mod to the new version. News is posted on <a href="https://t.me/jzbrawl">Telegram</a>.</p></div></li>
+    <li><span class="num">3</span><div><h3>Back online</h3><p>As soon as the new JZS Brawl is out, the status turns <b class="t-ok">Online</b>. Download it again on <a href="https://jzbrawl.fr/">jzbrawl.fr</a> and install it over the old one.</p></div></li>
+  </ol>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="bar">
+    <span>&copy; 2026 JZS Brawl</span>
+    <nav aria-label="Footer">
+      <a href="https://jzbrawl.fr/">jzbrawl.fr</a>
+      <a href="https://t.me/jzbrawl">Telegram</a>
+      <a href="https://brawlstars.com/invite/band/fr?tag=2UU29QJYY&amp;token=s2mhtdpg">Club</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('[data-game]').forEach(function (el) { el.textContent = 'v' + GAME_VERSION; });
+document.querySelectorAll('[data-mod]').forEach(function (el) { el.textContent = 'v' + MOD_VERSION; });
+document.title = (JZS_ONLINE ? 'Online' : 'Offline') + ' · JZS Brawl Status';
+</script>
+</body>
+</html>
