@@ -65,22 +65,22 @@ permission.
 
 ## Site
 
-`docs/` also holds the English site (`docs/index.html`, same layout as
-bsdbrawl.org): hero, download button, features, install guide, FAQ,
-Telegram and Brawl Stars club links.
+`docs/` holds the English site for https://jzbrawl.fr (`docs/index.html`,
+same layout as bsdbrawl.org): hero, download button, features, install
+guide, FAQ, Telegram and Brawl Stars club links.
 
-- Hosting: Settings → Pages → *Deploy from a branch* → pick this branch
-  and the `/docs` folder. The site goes live at
-  `https://labakadu37.github.io/Brawl-star-/`.
-- Download button: every button points to
-  `releases/latest/download/JZS-Brawl.apk`, so the file downloads
-  directly. Create a release (Releases → *Draft a new release*) and attach
-  the mod named exactly `JZS-Brawl.apk`. A newer release later updates the
-  buttons automatically. To use another host, change `DOWNLOAD_URL` at the
-  bottom of `index.html`.
-- Images: `docs/img/` (logo, in-game screenshot, gallery crops, install
-  steps). Replace a file with one of the same name to swap it.
-  `docs/preview.jpg` is the link preview shown on Telegram/Discord.
+Hosting on the VPS (nginx):
+
+1. Copy the contents of `docs/` to `/var/www/jzbrawl.fr/`.
+2. Put the mod at `/var/www/jzbrawl.fr/download/JZS-Brawl.apk`. Every
+   download button points there, so uploading a new file with the same
+   name updates the site.
+3. Install `deploy/jzbrawl.fr.conf` as an nginx site, reload nginx, then
+   `sudo certbot --nginx -d jzbrawl.fr -d www.jzbrawl.fr` for HTTPS.
+
+Images live in `docs/img/` (logo, in-game screenshot, gallery crops,
+install steps); replace a file with one of the same name to swap it.
+`docs/preview.jpg` is the link preview shown on Telegram/Discord.
 
 ## Legal
 
