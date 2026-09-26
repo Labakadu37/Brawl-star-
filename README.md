@@ -73,7 +73,7 @@ Hosting on the VPS (nginx):
 
 1. Copy the site files from `docs/` (everything except the `.md` files)
    to `/var/www/jzbrawl/`, all in the same folder.
-2. Put the mod at `/var/www/jzbrawl/download/JZS-Brawl.apk`. Every
+2. Put the mod at `/var/www/jzbrawl/JZS-Brawl.apk`. Every
    download button points there, so uploading a new file with the same
    name updates the site.
 3. Install `deploy/jzbrawl.fr.conf` as an nginx site, reload nginx, then
