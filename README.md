@@ -65,7 +65,7 @@ permission.
 
 ## Site
 
-`docs/` also holds the site (`docs/index.html`, same layout as
+`docs/` also holds the English site (`docs/index.html`, same layout as
 bsdbrawl.org): hero, download button, features, install guide, FAQ,
 Telegram and Brawl Stars club links.
 
