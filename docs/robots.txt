@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /JZS-Brawl.apk
+
+Sitemap: https://jzbrawl.fr/sitemap.xml
