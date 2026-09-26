@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>JZS Brawl Promo</title>
+<meta name="theme-color" content="#061659">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#03081F;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center;color:#fff;font:600 15px/1.4 Inter,system-ui,sans-serif}
+canvas{display:block;width:auto;height:auto;max-width:100vw;max-height:100vh;max-height:100dvh}
+.ui{position:fixed;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 16px calc(16px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.75));transition:opacity .2s}
+.ui.hidden{opacity:0;pointer-events:none}
+button{font:700 16px Inter,system-ui,sans-serif;color:#fff;background:#FF2D95;border:0;border-radius:50px;padding:14px 28px;cursor:pointer;box-shadow:0 6px 20px rgba(255,45,149,.4)}
+button:disabled{background:#6B3A55;box-shadow:none;cursor:default}
+.note{font-size:13px;color:rgba(255,255,255,.75);text-align:center;max-width:420px}
+</style>
+</head>
+<body>
+
+<canvas id="c" width="1080" height="1920" aria-label="JZS Brawl animated promo"></canvas>
+<div class="ui" id="ui">
+  <button id="rec" type="button">Télécharger la vidéo</button>
+  <div class="note" id="note">Touche l'animation pour cacher les boutons.</div>
+</div>
+
+<script>
+(function () {
+  var W = 1080, H = 1920, L = 8, LOOPS = 2, TAU = Math.PI * 2;
+  var canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+  var ui = document.getElementById('ui'), recBtn = document.getElementById('rec'), note = document.getElementById('note');
+  var HEAD = '"Lilita One", Impact, "Arial Black", sans-serif';
+  var BODY = 'Inter, system-ui, sans-serif';
+  var PINK = '#FF2D95', YELLOW = '#FFD23F', TEAL = '#7FC4C4', NAVY = '#061659';
+  var FEATS = [
+    { t: 'MOD MENU', c: PINK },
+    { t: 'FPS COUNTER', c: '#7B3CFF' },
+    { t: 'SUPERCELL ID LOGIN', c: '#14A89A' },
+    { t: 'LATEST v69.252', c: '#FF8A00' }
+  ];
+  var logo = null, shot = null, t0 = performance.now(), recording = null;
+
+  function rng(seed) {
+    return function () {
+      seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  var rand = rng(7), sparks = [], bokeh = [], i;
+  for (i = 0; i < 46; i++) {
+    sparks.push({ x: rand() * W, p: rand(), k: 1 + Math.floor(rand() * 2), m: 1 + Math.floor(rand() * 3), r: 6 + rand() * 14, c: ['#FFFFFF', PINK, YELLOW, TEAL][Math.floor(rand() * 4)] });
+  }
+  for (i = 0; i < 18; i++) {
+    bokeh.push({ x: rand() * W, p: rand(), r: 40 + rand() * 90, c: rand() < 0.5 ? '255,45,149' : '127,196,196' });
+  }
+
+  var bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0B1E7A'); bg.addColorStop(0.5, NAVY); bg.addColorStop(1, '#1A0838');
+  var rayA = ctx.createRadialGradient(0, 0, 0, 0, 0, 1300);
+  rayA.addColorStop(0, 'rgba(127,196,196,.30)'); rayA.addColorStop(1, 'rgba(127,196,196,0)');
+  var rayB = ctx.createRadialGradient(0, 0, 0, 0, 0, 1100);
+  rayB.addColorStop(0, 'rgba(255,45,149,.22)'); rayB.addColorStop(1, 'rgba(255,45,149,0)');
+
+  function wave(ph, n, off) { return Math.sin(TAU * (ph * n + (off || 0))); }
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function outBack(x) { var c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); }
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function star(x, y, r) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.quadraticCurveTo(x, y, x, y + r);
+    ctx.quadraticCurveTo(x, y, x - r, y);
+    ctx.quadraticCurveTo(x, y, x, y - r);
+    ctx.fill();
+  }
+
+  function layout() {
+    return shot
+      ? { logoY: 620, logoS: 380, shotY: 1070, featY: 1410 }
+      : { logoY: 800, logoS: logo ? 420 : 520, shotY: 0, featY: 1360 };
+  }
+
+  function rays(cx, cy, ph) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(ph * TAU / 8);
+    ctx.fillStyle = rayA;
+    ctx.beginPath();
+    for (var i = 0; i < 16; i++) { var a = i * TAU / 16; ctx.moveTo(0, 0); ctx.arc(0, 0, 1300, a, a + TAU / 32); ctx.closePath(); }
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-ph * TAU / 10);
+    ctx.fillStyle = rayB;
+    ctx.beginPath();
+    for (i = 0; i < 10; i++) { a = i * TAU / 10; ctx.moveTo(0, 0); ctx.arc(0, 0, 1100, a, a + TAU / 40); ctx.closePath(); }
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function particles(ph) {
+    for (var i = 0; i < bokeh.length; i++) {
+      var b = bokeh[i], q = (b.p + ph) % 1;
+      var y = H + b.r - q * (H + 2 * b.r), x = b.x + wave(ph, 1, b.p) * 30;
+      var a = 0.10 + 0.06 * wave(ph, 2, b.p);
+      var g = ctx.createRadialGradient(x, y, 0, x, y, b.r);
+      g.addColorStop(0, 'rgba(' + b.c + ',' + a + ')');
+      g.addColorStop(1, 'rgba(' + b.c + ',0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(x, y, b.r, 0, TAU); ctx.fill();
+    }
+    for (i = 0; i < sparks.length; i++) {
+      var s = sparks[i], q2 = (s.p + ph * s.k) % 1;
+      var sy = H + 40 - q2 * (H + 80), sx = s.x + wave(ph, s.m, s.p) * 24;
+      var tw = 0.5 + 0.5 * wave(ph, s.m * 2, s.p);
+      ctx.globalAlpha = 0.25 + 0.75 * tw;
+      ctx.fillStyle = s.c;
+      star(sx, sy, s.r * (0.6 + 0.4 * tw));
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function wordmark(parts, cx, cy, size, stroke) {
+    ctx.font = size + 'px ' + HEAD;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    var ws = [], xs = [], total = 0, i;
+    for (i = 0; i < parts.length; i++) { ws[i] = ctx.measureText(parts[i][0]).width; total += ws[i]; }
+    var px = cx - total / 2, y = cy + size * 0.04;
+    for (i = 0; i < parts.length; i++) { xs[i] = px; px += ws[i]; }
+    ctx.strokeStyle = '#000'; ctx.fillStyle = '#000'; ctx.lineWidth = stroke * 2;
+    for (i = 0; i < parts.length; i++) { ctx.strokeText(parts[i][0], xs[i], y + stroke); ctx.fillText(parts[i][0], xs[i], y + stroke); }
+    for (i = 0; i < parts.length; i++) ctx.strokeText(parts[i][0], xs[i], y);
+    for (i = 0; i < parts.length; i++) { ctx.fillStyle = parts[i][1]; ctx.fillText(parts[i][0], xs[i], y); }
+  }
+
+  function card(ph, cy) {
+    var cw = 900, ch = Math.min(520, cw * shot.naturalHeight / shot.naturalWidth);
+    ctx.save();
+    ctx.translate(W / 2, cy + 14 * wave(ph, 2, 0.25));
+    ctx.rotate(-0.045 + 0.02 * wave(ph, 1));
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(-cw / 2 + 10, -ch / 2 + 22, cw, ch, 36); ctx.fill();
+    ctx.fillStyle = '#fff'; rr(-cw / 2 - 8, -ch / 2 - 8, cw + 16, ch + 16, 40); ctx.fill();
+    ctx.save();
+    rr(-cw / 2, -ch / 2, cw, ch, 32); ctx.clip();
+    var nw = shot.naturalWidth, nh = shot.naturalHeight, r = cw / ch, sw, sh, sx, sy;
+    if (nw / nh > r) { sh = nh; sw = sh * r; sx = (nw - sw) / 2; sy = 0; } else { sw = nw; sh = sw / r; sx = 0; sy = (nh - sh) / 2; }
+    ctx.drawImage(shot, sx, sy, sw, sh, -cw / 2, -ch / 2, cw, ch);
+    var s = (ph * 2) % 1;
+    if (s < 0.35) {
+      var bx = -cw + (s / 0.35) * cw * 2;
+      var g = ctx.createLinearGradient(bx - 160, -ch / 2, bx + 160, ch / 2);
+      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(-cw / 2, -ch / 2, cw, ch);
+    }
+    ctx.restore();
+    ctx.restore();
+  }
+
+  function emblem(ph, cy, S) {
+    var cx = W / 2, gr = S * (0.95 + 0.08 * wave(ph, 2));
+    var g = ctx.createRadialGradient(cx, cy, S * 0.2, cx, cy, gr);
+    g.addColorStop(0, 'rgba(255,45,149,.55)'); g.addColorStop(1, 'rgba(255,45,149,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, gr, 0, TAU); ctx.fill();
+    for (var k = 0; k < 2; k++) {
+      var q = (ph * 2 + k / 2) % 1;
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 * (1 - q)) + ')';
+      ctx.lineWidth = 6 * (1 - q) + 1;
+      ctx.beginPath(); ctx.arc(cx, cy, S * 0.62 + q * S * 0.55, 0, TAU); ctx.stroke();
+    }
+    var pulse = 1 + 0.035 * wave(ph, 2), h = S / 2, rad = S * 0.22;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(0.05 * wave(ph, 1));
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(-h + 6, -h + 18, S, S, rad); ctx.fill();
+    ctx.fillStyle = '#fff'; rr(-h - 9, -h - 9, S + 18, S + 18, rad + 8); ctx.fill();
+    ctx.save();
+    rr(-h, -h, S, S, rad); ctx.clip();
+    if (logo) {
+      ctx.drawImage(logo, -h, -h, S, S);
+    } else {
+      var lg = ctx.createLinearGradient(0, -h, 0, h);
+      lg.addColorStop(0, '#3A0F6E'); lg.addColorStop(1, '#12053A');
+      ctx.fillStyle = lg; ctx.fillRect(-h, -h, S, S);
+      wordmark([['JZ', '#fff'], ['S', PINK]], 0, 0, S * 0.42, S * 0.03);
+    }
+    ctx.restore();
+    ctx.restore();
+  }
+
+  function title(ph) {
+    wordmark([['JZ', '#fff'], ['S', PINK], [' BRAWL', YELLOW]], W / 2, 250 + 8 * wave(ph, 2, 0.5), 150, 11);
+    ctx.font = '700 34px ' + BODY;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '6px';
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.fillText('BRAWL STARS MOD  •  ANDROID', W / 2, 360);
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  }
+
+  function feature(ph, cy) {
+    var n = FEATS.length, f = ph * n, u = f - Math.floor(f), it = FEATS[Math.floor(f) % n];
+    var e = clamp01(u / 0.14), x = clamp01((u - 0.86) / 0.14);
+    var sc = 0.55 + 0.45 * outBack(e);
+    ctx.save();
+    ctx.globalAlpha = clamp01(e * 2) * (1 - x);
+    ctx.translate(W / 2, cy - x * x * x * 90);
+    ctx.rotate(-0.035);
+    ctx.scale(sc, sc);
+    ctx.font = '84px ' + HEAD;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    var bw = ctx.measureText(it.t).width + 110, bh = 132, sk = 24;
+    function band(ox, oy) {
+      ctx.beginPath();
+      ctx.moveTo(-bw / 2 + sk + ox, -bh / 2 + oy);
+      ctx.lineTo(bw / 2 + sk + ox, -bh / 2 + oy);
+      ctx.lineTo(bw / 2 - sk + ox, bh / 2 + oy);
+      ctx.lineTo(-bw / 2 - sk + ox, bh / 2 + oy);
+      ctx.closePath();
+    }
+    ctx.fillStyle = '#000'; band(8, 12); ctx.fill();
+    ctx.fillStyle = it.c; band(0, 0); ctx.fill();
+    ctx.lineWidth = 8; ctx.strokeStyle = '#000'; ctx.stroke();
+    ctx.lineWidth = 16; ctx.strokeText(it.t, 0, 6);
+    ctx.fillStyle = '#fff'; ctx.fillText(it.t, 0, 6);
+    ctx.restore();
+  }
+
+  function cta(ph, cy) {
+    var pw = 640, bh = 108, s = 1 + 0.025 * wave(ph, 4);
+    ctx.save();
+    ctx.translate(W / 2, cy);
+    ctx.scale(s, s);
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(-pw / 2 + 4, -bh / 2 + 10, pw, bh, bh / 2); ctx.fill();
+    ctx.fillStyle = '#fff'; rr(-pw / 2, -bh / 2, pw, bh, bh / 2); ctx.fill();
+    ctx.save();
+    rr(-pw / 2, -bh / 2, pw, bh, bh / 2); ctx.clip();
+    var q = (ph * 2 + 0.5) % 1;
+    if (q < 0.3) {
+      var bx = -pw + (q / 0.3) * pw * 2;
+      var g = ctx.createLinearGradient(bx - 90, -bh / 2, bx + 90, bh / 2);
+      g.addColorStop(0, 'rgba(255,45,149,0)'); g.addColorStop(0.5, 'rgba(255,45,149,.28)'); g.addColorStop(1, 'rgba(255,45,149,0)');
+      ctx.fillStyle = g; ctx.fillRect(-pw / 2, -bh / 2, pw, bh);
+    }
+    ctx.restore();
+    ctx.font = '800 50px ' + BODY;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    var tw = ctx.measureText('jzbrawl.fr').width, x0 = -(44 + 18 + tw) / 2, ix = x0 + 22;
+    ctx.strokeStyle = NAVY; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ix, -20); ctx.lineTo(ix, 10);
+    ctx.moveTo(ix - 14, -4); ctx.lineTo(ix, 10); ctx.lineTo(ix + 14, -4);
+    ctx.moveTo(ix - 18, 22); ctx.lineTo(ix + 18, 22);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = NAVY;
+    ctx.fillText('jzbrawl.fr', x0 + 62, 3);
+    ctx.restore();
+    ctx.font = '700 34px ' + BODY;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = TEAL;
+    ctx.fillText('t.me/jzbrawl', W / 2, cy + 100);
+  }
+
+  function frame(now) {
+    if (recording) {
+      if (now >= recording.end) {
+        var r = recording; recording = null; r.rec.stop();
+      } else {
+        recBtn.textContent = 'Enregistrement… ' + Math.ceil((recording.end - now) / 1000) + ' s';
+      }
+    }
+    var ph = (((now - t0) / 1000) % L) / L, lay = layout();
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    rays(W / 2, lay.logoY, ph);
+    particles(ph);
+    if (shot) card(ph, lay.shotY);
+    emblem(ph, lay.logoY, lay.logoS);
+    title(ph);
+    feature(ph, lay.featY);
+    cta(ph, lay.featY + 170);
+    requestAnimationFrame(frame);
+  }
+
+  function pickMime() {
+    var list = ['video/mp4;codecs=avc1.42E01E', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    for (var i = 0; i < list.length; i++) if (MediaRecorder.isTypeSupported(list[i])) return list[i];
+    return '';
+  }
+
+  recBtn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    if (recording) return;
+    if (!window.MediaRecorder || !canvas.captureStream) {
+      note.textContent = "Ce navigateur ne peut pas exporter la vidéo. Utilise l'enregistreur d'écran du téléphone.";
+      return;
+    }
+    var stream, rec, chunks = [], mime = pickMime(), opts = { videoBitsPerSecond: 10000000 };
+    if (mime) opts.mimeType = mime;
+    try {
+      stream = canvas.captureStream(30);
+      rec = new MediaRecorder(stream, opts);
+    } catch (err) {
+      note.textContent = "Export impossible ici. Ouvre jzbrawl.fr/promo.html dans Chrome pour télécharger la vidéo.";
+      return;
+    }
+    rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+    rec.onstop = function () {
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      var type = rec.mimeType || mime || 'video/webm';
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(chunks, { type: type }));
+      a.download = 'jzs-brawl.' + (type.indexOf('mp4') !== -1 ? 'mp4' : 'webm');
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
+      recBtn.disabled = false;
+      recBtn.textContent = 'Télécharger la vidéo';
+      note.textContent = 'Vidéo prête : ' + a.download;
+    };
+    t0 = performance.now();
+    recording = { rec: rec, end: t0 + L * LOOPS * 1000 };
+    rec.start(1000);
+    recBtn.disabled = true;
+    note.textContent = "Garde cette page ouverte jusqu'à la fin.";
+  });
+
+  canvas.addEventListener('click', function () { if (!recording) ui.classList.toggle('hidden'); });
+
+  function load(srcs, done) {
+    var i = 0;
+    (function next() {
+      if (i >= srcs.length) return;
+      var im = new Image();
+      im.onload = function () { done(im); };
+      im.onerror = function () { i++; next(); };
+      im.src = srcs[i];
+    })();
+  }
+  load(['logo.png', 'https://jzbrawl.fr/logo.png'], function (im) { logo = im; });
+  load(['capture-jeu.webp', 'https://jzbrawl.fr/capture-jeu.webp'], function (im) { shot = im; });
+
+  function start() { requestAnimationFrame(frame); }
+  var fonts = document.fonts && document.fonts.load
+    ? Promise.all([document.fonts.load('150px "Lilita One"'), document.fonts.load('800 50px Inter')])
+    : Promise.resolve();
+  Promise.race([fonts, new Promise(function (r) { setTimeout(r, 2500); })]).then(start, start);
+})();
+</script>
+</body>
+</html>

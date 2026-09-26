@@ -83,6 +83,9 @@ Images sit next to `index.html` (logo, in-game screenshot, gallery
 crops, install steps); replace a file with one of the same name to swap
 it.
 `docs/preview.jpg` is the link preview shown on Telegram/Discord.
+`docs/promo.html` (https://jzbrawl.fr/promo.html) is an 8-second 9:16
+promo animation that loops without a cut; its button records it to a
+video file to post.
 
 ## Status page
 
