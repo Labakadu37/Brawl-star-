@@ -63,6 +63,25 @@ Rendered in the game's own activity window, so it survives orientation
 changes and the game's own draw pass without any `SYSTEM_ALERT_WINDOW`
 permission.
 
+## Site
+
+`docs/` also holds the site (`docs/index.html`, same layout as
+bsdbrawl.org): hero, download button, features, install guide, FAQ,
+Telegram and Brawl Stars club links.
+
+- Hosting: Settings → Pages → *Deploy from a branch* → pick this branch
+  and the `/docs` folder. The site goes live at
+  `https://labakadu37.github.io/Brawl-star-/`.
+- Download button: every button points to
+  `releases/latest/download/JZS-Brawl.apk`, so the file downloads
+  directly. Create a release (Releases → *Draft a new release*) and attach
+  the mod named exactly `JZS-Brawl.apk`. A newer release later updates the
+  buttons automatically. To use another host, change `DOWNLOAD_URL` at the
+  bottom of `index.html`.
+- Images: `docs/img/` (logo, in-game screenshot, gallery crops, install
+  steps). Replace a file with one of the same name to swap it.
+  `docs/preview.jpg` is the link preview shown on Telegram/Discord.
+
 ## Legal
 
 This is a client-side, cosmetic mod for personal use. It does not touch
