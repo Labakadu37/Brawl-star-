@@ -21,3 +21,8 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+
+# Discord Manager (PyInstaller)
+discord-manager/build/
+discord-manager/dist/
+*.spec
