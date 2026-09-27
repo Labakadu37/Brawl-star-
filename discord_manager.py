@@ -2,622 +2,598 @@ import customtkinter as ctk
 import requests
 import threading
 import io
-import os
-import sys
 from urllib.request import urlopen
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
-# --- Theme ---
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 DISCORD_API = "https://discord.com/api/v10"
-DARK_BG = "#1a1a2e"
-CARD_BG = "#16213e"
-ACCENT = "#5865F2"
-ACCENT_HOVER = "#4752C4"
-GREEN = "#57F287"
-YELLOW = "#FEE75C"
-RED = "#ED4245"
-GRAY = "#99AAB5"
+
+# --- Nitro Black/Orange Theme ---
+BG = "#0a0a0a"
+BG2 = "#111111"
+CARD = "#1a1a1a"
+CARD2 = "#141414"
+CARD_BORDER = "#2a2a2a"
+ORANGE = "#FF6B00"
+ORANGE_DARK = "#CC5500"
+ORANGE_LIGHT = "#FF8C33"
+ORANGE_GLOW = "#FF6B0022"
+PURPLE = "#9B59B6"
+PURPLE_DARK = "#7D3C98"
+GREEN = "#2ECC71"
+YELLOW = "#F39C12"
+RED = "#E74C3C"
+RED_DARK = "#C0392B"
+GRAY = "#666666"
+GRAY_LIGHT = "#888888"
 TEXT = "#FFFFFF"
-SUBTEXT = "#B9BBBE"
+TEXT_DIM = "#AAAAAA"
+TEXT_DARK = "#777777"
+INPUT_BG = "#0d0d0d"
+INPUT_BORDER = "#333333"
 
 
 def fetch_user(token):
-    headers = {"Authorization": token, "Content-Type": "application/json"}
-    r = requests.get(f"{DISCORD_API}/users/@me", headers=headers, timeout=10)
+    h = {"Authorization": token, "Content-Type": "application/json"}
+    r = requests.get(f"{DISCORD_API}/users/@me", headers=h, timeout=10)
     r.raise_for_status()
     return r.json()
+
+
+def fetch_settings(token):
+    h = {"Authorization": token, "Content-Type": "application/json"}
+    try:
+        r = requests.get(f"{DISCORD_API}/users/@me/settings", headers=h, timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return {}
 
 
 def fetch_avatar(user_data):
-    avatar_hash = user_data.get("avatar")
-    user_id = user_data["id"]
-    if avatar_hash:
-        ext = "gif" if avatar_hash.startswith("a_") else "png"
-        url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.{ext}?size=128"
+    av = user_data.get("avatar")
+    uid = user_data["id"]
+    if av:
+        ext = "gif" if av.startswith("a_") else "png"
+        url = f"https://cdn.discordapp.com/avatars/{uid}/{av}.{ext}?size=256"
     else:
-        index = (int(user_id) >> 22) % 6
-        url = f"https://cdn.discordapp.com/embed/avatars/{index}.png"
+        idx = (int(uid) >> 22) % 6
+        url = f"https://cdn.discordapp.com/embed/avatars/{idx}.png"
     data = urlopen(url).read()
-    img = Image.open(io.BytesIO(data)).resize((128, 128), Image.LANCZOS)
-    return img
+    return Image.open(io.BytesIO(data)).resize((120, 120), Image.LANCZOS)
 
 
-def make_circle_avatar(img, size=128):
+def circle_crop(img, size=120):
     mask = Image.new("L", (size, size), 0)
-    draw = ImageDraw.Draw(mask)
-    draw.ellipse((0, 0, size, size), fill=255)
-    result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    result.paste(img.convert("RGBA"), (0, 0), mask)
-    return result
+    ImageDraw.Draw(mask).ellipse((0, 0, size, size), fill=255)
+    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    out.paste(img.convert("RGBA"), (0, 0), mask)
+    return out
 
 
-def update_status(token, status):
-    headers = {"Authorization": token, "Content-Type": "application/json"}
-    r = requests.patch(
-        f"{DISCORD_API}/users/@me/settings",
-        headers=headers,
-        json={"status": status},
-        timeout=10,
-    )
+def api_set_status(token, status):
+    h = {"Authorization": token, "Content-Type": "application/json"}
+    r = requests.patch(f"{DISCORD_API}/users/@me/settings", headers=h, json={"status": status}, timeout=10)
     r.raise_for_status()
-    return r.json()
 
 
-def update_custom_status(token, text=None, emoji_name=None):
-    headers = {"Authorization": token, "Content-Type": "application/json"}
-    custom = {}
+def api_custom_status(token, text=None, emoji=None):
+    h = {"Authorization": token, "Content-Type": "application/json"}
+    cs = {}
     if text:
-        custom["text"] = text
-    if emoji_name:
-        custom["emoji_name"] = emoji_name
-    payload = {"custom_status": custom if (text or emoji_name) else None}
-    r = requests.patch(
-        f"{DISCORD_API}/users/@me/settings",
-        headers=headers,
-        json=payload,
-        timeout=10,
-    )
+        cs["text"] = text
+    if emoji:
+        cs["emoji_name"] = emoji
+    r = requests.patch(f"{DISCORD_API}/users/@me/settings", headers=h, json={"custom_status": cs or None}, timeout=10)
+    r.raise_for_status()
+
+
+def api_change_password(token, old_pw, new_pw):
+    h = {"Authorization": token, "Content-Type": "application/json"}
+    r = requests.patch(f"{DISCORD_API}/users/@me", headers=h, json={"password": old_pw, "new_password": new_pw}, timeout=10)
     r.raise_for_status()
     return r.json()
+
+
+class GlowButton(ctk.CTkButton):
+    pass
 
 
 class LoginFrame(ctk.CTkFrame):
     def __init__(self, master, on_login):
-        super().__init__(master, fg_color=DARK_BG)
+        super().__init__(master, fg_color=BG)
         self.on_login = on_login
-
-        self.grid_rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1)
+        self.grid_rowconfigure((0, 1, 2, 3, 4, 5), weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # Logo / Title
-        title = ctk.CTkLabel(
-            self,
-            text="Discord Manager",
-            font=ctk.CTkFont(size=32, weight="bold"),
-            text_color=ACCENT,
-        )
-        title.grid(row=1, column=0, pady=(0, 5))
+        # Top accent line
+        accent_line = ctk.CTkFrame(self, height=3, fg_color=ORANGE, corner_radius=0)
+        accent_line.grid(row=0, column=0, sticky="new", pady=0)
 
-        subtitle = ctk.CTkLabel(
-            self,
-            text="Gere ton compte Discord facilement",
-            font=ctk.CTkFont(size=14),
-            text_color=SUBTEXT,
-        )
-        subtitle.grid(row=2, column=0, pady=(0, 30))
+        # Title
+        ctk.CTkLabel(
+            self, text="DISCORD", font=ctk.CTkFont(size=42, weight="bold"), text_color=ORANGE
+        ).grid(row=1, column=0, pady=(0, 0), sticky="s")
 
-        # Token input card
-        card = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=15, width=420, height=200)
-        card.grid(row=3, column=0, padx=40)
-        card.grid_propagate(False)
-        card.grid_rowconfigure((0, 1, 2, 3), weight=1)
+        ctk.CTkLabel(
+            self, text="MANAGER", font=ctk.CTkFont(size=42, weight="bold"), text_color=TEXT
+        ).grid(row=2, column=0, pady=(0, 0), sticky="n")
+
+        ctk.CTkLabel(
+            self, text="━━━━━━━━━━━━━━━━━━━", font=ctk.CTkFont(size=14), text_color=ORANGE_DARK
+        ).grid(row=2, column=0, pady=(45, 0), sticky="n")
+
+        # Card
+        card = ctk.CTkFrame(self, fg_color=CARD, corner_radius=20, border_width=1, border_color=CARD_BORDER)
+        card.grid(row=3, column=0, padx=60)
         card.grid_columnconfigure(0, weight=1)
 
-        token_label = ctk.CTkLabel(
-            card,
-            text="Rentre ton Token",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color=TEXT,
-        )
-        token_label.grid(row=0, column=0, pady=(20, 5))
+        inner = ctk.CTkFrame(card, fg_color="transparent")
+        inner.pack(padx=40, pady=35)
+
+        ctk.CTkLabel(
+            inner, text="Connexion", font=ctk.CTkFont(size=22, weight="bold"), text_color=TEXT
+        ).pack(pady=(0, 5))
+
+        ctk.CTkLabel(
+            inner, text="Entre ton token Discord pour commencer", font=ctk.CTkFont(size=12), text_color=TEXT_DIM
+        ).pack(pady=(0, 20))
 
         self.token_entry = ctk.CTkEntry(
-            card,
-            width=350,
-            height=45,
-            placeholder_text="Token Discord...",
-            show="*",
-            font=ctk.CTkFont(size=14),
-            corner_radius=10,
-            fg_color="#0f3460",
-            border_color=ACCENT,
-            text_color=TEXT,
+            inner, width=380, height=50, placeholder_text="Token Discord...",
+            show="*", font=ctk.CTkFont(size=14), corner_radius=12,
+            fg_color=INPUT_BG, border_color=INPUT_BORDER, border_width=1, text_color=TEXT,
         )
-        self.token_entry.grid(row=1, column=0, pady=(5, 5))
+        self.token_entry.pack(pady=(0, 8))
 
         self.show_var = ctk.BooleanVar(value=False)
-        show_check = ctk.CTkCheckBox(
-            card,
-            text="Afficher le token",
-            variable=self.show_var,
-            command=self.toggle_show,
-            font=ctk.CTkFont(size=12),
-            text_color=SUBTEXT,
-            fg_color=ACCENT,
-            hover_color=ACCENT_HOVER,
-        )
-        show_check.grid(row=2, column=0, pady=(0, 5))
+        ctk.CTkCheckBox(
+            inner, text="Afficher le token", variable=self.show_var,
+            command=lambda: self.token_entry.configure(show="" if self.show_var.get() else "*"),
+            font=ctk.CTkFont(size=11), text_color=TEXT_DARK,
+            fg_color=ORANGE, hover_color=ORANGE_DARK, border_color=GRAY,
+        ).pack(pady=(0, 18))
 
         self.login_btn = ctk.CTkButton(
-            card,
-            text="Connexion",
-            width=200,
-            height=42,
-            font=ctk.CTkFont(size=16, weight="bold"),
-            fg_color=ACCENT,
-            hover_color=ACCENT_HOVER,
-            corner_radius=10,
+            inner, text="SE CONNECTER", width=380, height=48,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            fg_color=ORANGE, hover_color=ORANGE_DARK, corner_radius=12,
             command=self.do_login,
         )
-        self.login_btn.grid(row=3, column=0, pady=(5, 20))
+        self.login_btn.pack()
 
-        self.status_label = ctk.CTkLabel(
-            self, text="", font=ctk.CTkFont(size=13), text_color=RED
-        )
-        self.status_label.grid(row=4, column=0, pady=(10, 0))
+        self.status = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=13), text_color=RED)
+        self.status.grid(row=4, column=0, pady=(10, 0))
 
-        # Bind Enter key
+        # Bottom
+        ctk.CTkLabel(
+            self, text="v1.0  ●  by JZS", font=ctk.CTkFont(size=11), text_color=TEXT_DARK
+        ).grid(row=5, column=0, pady=(0, 15), sticky="s")
+
         self.token_entry.bind("<Return>", lambda e: self.do_login())
-
-    def toggle_show(self):
-        self.token_entry.configure(show="" if self.show_var.get() else "*")
 
     def do_login(self):
         token = self.token_entry.get().strip()
         if not token:
-            self.status_label.configure(text="Entre un token !", text_color=RED)
+            self.status.configure(text="⚠ Entre un token !", text_color=ORANGE)
             return
         self.login_btn.configure(state="disabled", text="Connexion...")
-        self.status_label.configure(text="Verification...", text_color=YELLOW)
+        self.status.configure(text="Verification en cours...", text_color=YELLOW)
 
         def task():
             try:
                 user = fetch_user(token)
-                avatar_img = None
+                settings = fetch_settings(token)
+                avatar = None
                 try:
-                    avatar_img = fetch_avatar(user)
-                    avatar_img = make_circle_avatar(avatar_img)
+                    avatar = circle_crop(fetch_avatar(user))
                 except Exception:
                     pass
-                self.after(0, lambda: self.on_login(token, user, avatar_img))
+                self.after(0, lambda: self.on_login(token, user, settings, avatar))
             except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 401:
-                    msg = "Token invalide !"
-                else:
-                    msg = f"Erreur: {e}"
-                self.after(
-                    0,
-                    lambda: (
-                        self.status_label.configure(text=msg, text_color=RED),
-                        self.login_btn.configure(state="normal", text="Connexion"),
-                    ),
-                )
+                msg = "Token invalide !" if e.response and e.response.status_code == 401 else f"Erreur: {e}"
+                self.after(0, lambda: (
+                    self.status.configure(text=msg, text_color=RED),
+                    self.login_btn.configure(state="normal", text="SE CONNECTER"),
+                ))
             except Exception as e:
-                self.after(
-                    0,
-                    lambda: (
-                        self.status_label.configure(
-                            text=f"Erreur: {e}", text_color=RED
-                        ),
-                        self.login_btn.configure(state="normal", text="Connexion"),
-                    ),
-                )
+                self.after(0, lambda: (
+                    self.status.configure(text=f"Erreur: {e}", text_color=RED),
+                    self.login_btn.configure(state="normal", text="SE CONNECTER"),
+                ))
 
         threading.Thread(target=task, daemon=True).start()
 
 
 class MainFrame(ctk.CTkFrame):
-    def __init__(self, master, token, user_data, avatar_img, on_logout):
-        super().__init__(master, fg_color=DARK_BG)
+    def __init__(self, master, token, user_data, settings, avatar_img, on_logout):
+        super().__init__(master, fg_color=BG)
         self.token = token
-        self.user_data = user_data
+        self.user = user_data
+        self.settings = settings
         self.on_logout = on_logout
 
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=2)
-        self.grid_rowconfigure(0, weight=1)
+        # Top bar
+        topbar = ctk.CTkFrame(self, fg_color=CARD, height=50, corner_radius=0)
+        topbar.pack(fill="x", side="top")
+        topbar.pack_propagate(False)
 
-        # --- Left: Profile preview ---
-        left = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=15, width=300)
-        left.grid(row=0, column=0, padx=(15, 8), pady=15, sticky="nsew")
-        left.grid_propagate(False)
-        left.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            topbar, text="DISCORD", font=ctk.CTkFont(size=18, weight="bold"), text_color=ORANGE
+        ).pack(side="left", padx=(20, 3), pady=10)
+        ctk.CTkLabel(
+            topbar, text="MANAGER", font=ctk.CTkFont(size=18, weight="bold"), text_color=TEXT
+        ).pack(side="left", pady=10)
 
-        profile_title = ctk.CTkLabel(
-            left,
-            text="Profil",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color=ACCENT,
-        )
-        profile_title.grid(row=0, column=0, pady=(20, 15))
+        ctk.CTkButton(
+            topbar, text="Deconnexion", width=110, height=32,
+            fg_color=RED, hover_color=RED_DARK, corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"), command=on_logout,
+        ).pack(side="right", padx=15, pady=10)
+
+        # Orange accent under topbar
+        ctk.CTkFrame(self, height=2, fg_color=ORANGE, corner_radius=0).pack(fill="x")
+
+        # Main content
+        content = ctk.CTkFrame(self, fg_color=BG)
+        content.pack(fill="both", expand=True, padx=15, pady=15)
+        content.grid_columnconfigure(0, weight=2)
+        content.grid_columnconfigure(1, weight=5)
+        content.grid_rowconfigure(0, weight=1)
+
+        # ======= LEFT: Profile =======
+        left = ctk.CTkFrame(content, fg_color=CARD, corner_radius=16, border_width=1, border_color=CARD_BORDER)
+        left.grid(row=0, column=0, padx=(0, 8), sticky="nsew")
+
+        # Orange top on profile card
+        orange_top = ctk.CTkFrame(left, height=60, fg_color=ORANGE, corner_radius=0)
+        orange_top.pack(fill="x")
+        # Rounded top corners hack
+        corner_fix = ctk.CTkFrame(left, height=16, fg_color=CARD, corner_radius=16)
+        corner_fix.place(relx=0, rely=0, y=50, relwidth=1, height=20)
+
+        profile_inner = ctk.CTkFrame(left, fg_color="transparent")
+        profile_inner.pack(fill="both", expand=True, padx=15, pady=(20, 15))
 
         # Avatar
         if avatar_img:
-            ctk_img = ctk.CTkImage(light_image=avatar_img, dark_image=avatar_img, size=(100, 100))
-            avatar_label = ctk.CTkLabel(left, image=ctk_img, text="")
-            avatar_label.grid(row=1, column=0, pady=(5, 10))
+            # Add orange ring around avatar
+            ring_size = 130
+            ring = Image.new("RGBA", (ring_size, ring_size), (0, 0, 0, 0))
+            d = ImageDraw.Draw(ring)
+            d.ellipse((0, 0, ring_size, ring_size), fill=(255, 107, 0, 255))
+            d.ellipse((4, 4, ring_size - 4, ring_size - 4), fill=(0, 0, 0, 0))
+            avatar_with_ring = Image.new("RGBA", (ring_size, ring_size), (0, 0, 0, 0))
+            avatar_with_ring.paste(ring, (0, 0), ring)
+            avatar_with_ring.paste(avatar_img, (5, 5), avatar_img)
+            ctk_img = ctk.CTkImage(light_image=avatar_with_ring, dark_image=avatar_with_ring, size=(130, 130))
+            ctk.CTkLabel(profile_inner, image=ctk_img, text="").pack(pady=(0, 10))
         else:
-            no_avatar = ctk.CTkLabel(
-                left, text="👤", font=ctk.CTkFont(size=60), text_color=GRAY
-            )
-            no_avatar.grid(row=1, column=0, pady=(5, 10))
+            ctk.CTkLabel(profile_inner, text="👤", font=ctk.CTkFont(size=50), text_color=ORANGE).pack(pady=(0, 10))
 
-        username = user_data.get("username", "???")
-        display_name = user_data.get("global_name") or username
-        discriminator = user_data.get("discriminator", "0")
+        display = user_data.get("global_name") or user_data.get("username", "???")
+        ctk.CTkLabel(
+            profile_inner, text=display, font=ctk.CTkFont(size=20, weight="bold"), text_color=TEXT
+        ).pack(pady=(0, 2))
 
-        name_label = ctk.CTkLabel(
-            left,
-            text=display_name,
-            font=ctk.CTkFont(size=22, weight="bold"),
-            text_color=TEXT,
-        )
-        name_label.grid(row=2, column=0, pady=(5, 2))
+        uname = user_data.get("username", "???")
+        disc = user_data.get("discriminator", "0")
+        tag = f"{uname}#{disc}" if disc != "0" else f"@{uname}"
+        ctk.CTkLabel(profile_inner, text=tag, font=ctk.CTkFont(size=13), text_color=TEXT_DIM).pack(pady=(0, 4))
 
-        if discriminator and discriminator != "0":
-            tag = f"{username}#{discriminator}"
-        else:
-            tag = f"@{username}"
-        tag_label = ctk.CTkLabel(
-            left, text=tag, font=ctk.CTkFont(size=14), text_color=SUBTEXT
-        )
-        tag_label.grid(row=3, column=0, pady=(0, 5))
+        # Current status indicator
+        cur_status = settings.get("status", "online")
+        status_colors = {"online": GREEN, "idle": YELLOW, "dnd": RED, "invisible": GRAY, "streaming": PURPLE}
+        status_names = {"online": "En ligne", "idle": "Inactif", "dnd": "Ne pas deranger", "invisible": "Invisible"}
+        sc = status_colors.get(cur_status, GREEN)
+        sn = status_names.get(cur_status, cur_status)
+        status_frame = ctk.CTkFrame(profile_inner, fg_color=sc, corner_radius=10, height=28)
+        status_frame.pack(pady=(5, 8))
+        ctk.CTkLabel(
+            status_frame, text=f"  ● {sn}  ", font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#000000" if sc in (GREEN, YELLOW) else TEXT
+        ).pack(padx=8, pady=4)
 
-        user_id = user_data.get("id", "???")
-        id_label = ctk.CTkLabel(
-            left,
-            text=f"ID: {user_id}",
-            font=ctk.CTkFont(size=12),
-            text_color=GRAY,
-        )
-        id_label.grid(row=4, column=0, pady=(0, 5))
+        # Separator
+        ctk.CTkFrame(profile_inner, height=1, fg_color=CARD_BORDER).pack(fill="x", pady=8)
 
-        # Badges info
-        flags = user_data.get("public_flags", 0)
-        badges = []
-        flag_map = {
-            1: "Staff",
-            2: "Partner",
-            4: "HypeSquad Events",
-            8: "Bug Hunter 1",
-            64: "Bravery",
-            128: "Brilliance",
-            256: "Balance",
-            512: "Early Supporter",
-            16384: "Bug Hunter 2",
-            131072: "Dev Bot",
-            4194304: "Active Dev",
-        }
-        for val, name in flag_map.items():
-            if flags & val:
-                badges.append(name)
+        # Info
+        info = ctk.CTkFrame(profile_inner, fg_color="transparent")
+        info.pack(fill="x", padx=5)
 
-        if badges:
-            badge_text = " | ".join(badges)
-        else:
-            badge_text = "Aucun badge"
-        badge_label = ctk.CTkLabel(
-            left,
-            text=badge_text,
-            font=ctk.CTkFont(size=11),
-            text_color=SUBTEXT,
-            wraplength=250,
-        )
-        badge_label.grid(row=5, column=0, pady=(5, 10))
+        def info_row(parent, label, value, row, color=TEXT_DIM):
+            ctk.CTkLabel(parent, text=label, font=ctk.CTkFont(size=11, weight="bold"), text_color=ORANGE, anchor="w").grid(row=row, column=0, sticky="w", pady=2)
+            ctk.CTkLabel(parent, text=value, font=ctk.CTkFont(size=11), text_color=color, anchor="w", wraplength=170).grid(row=row, column=1, sticky="w", padx=(8, 0), pady=2)
+
+        info.grid_columnconfigure(1, weight=1)
+        info_row(info, "ID", user_data.get("id", "???"), 0)
+
+        email = user_data.get("email")
+        if email:
+            info_row(info, "Email", email, 1)
+
+        phone = user_data.get("phone")
+        if phone:
+            info_row(info, "Tel", phone, 2)
 
         # Nitro
         premium = user_data.get("premium_type", 0)
-        nitro_map = {0: "Pas de Nitro", 1: "Nitro Classic", 2: "Nitro", 3: "Nitro Basic"}
-        nitro_label = ctk.CTkLabel(
-            left,
-            text=nitro_map.get(premium, "Inconnu"),
-            font=ctk.CTkFont(size=13),
-            text_color=YELLOW if premium else GRAY,
-        )
-        nitro_label.grid(row=6, column=0, pady=(0, 10))
+        nitro_map = {0: "Aucun", 1: "Classic", 2: "Nitro", 3: "Basic"}
+        nitro_text = nitro_map.get(premium, "?")
+        info_row(info, "Nitro", nitro_text, 3, ORANGE if premium else TEXT_DARK)
 
-        # Email / Phone
-        email = user_data.get("email", "Non visible")
-        phone = user_data.get("phone", "Non visible")
-        info_frame = ctk.CTkFrame(left, fg_color="transparent")
-        info_frame.grid(row=7, column=0, pady=(5, 10), padx=15, sticky="ew")
-        info_frame.grid_columnconfigure(0, weight=1)
+        # Badges
+        flags = user_data.get("public_flags", 0)
+        badge_map = {
+            1: "Staff", 2: "Partner", 4: "HypeSquad", 8: "Bug Hunter",
+            64: "Bravery", 128: "Brilliance", 256: "Balance",
+            512: "Early Supporter", 16384: "Bug Hunter 2",
+            131072: "Dev Bot", 4194304: "Active Dev",
+        }
+        badges = [n for v, n in badge_map.items() if flags & v]
+        info_row(info, "Badges", ", ".join(badges) if badges else "Aucun", 4)
 
-        if email and email != "Non visible":
-            ctk.CTkLabel(
-                info_frame,
-                text=f"Email: {email}",
-                font=ctk.CTkFont(size=11),
-                text_color=SUBTEXT,
-                anchor="w",
-            ).grid(row=0, column=0, sticky="w", pady=2)
+        # ======= RIGHT: Management =======
+        right_scroll = ctk.CTkScrollableFrame(content, fg_color=BG, corner_radius=0, scrollbar_button_color=CARD_BORDER, scrollbar_button_hover_color=ORANGE_DARK)
+        right_scroll.grid(row=0, column=1, padx=(8, 0), sticky="nsew")
+        right_scroll.grid_columnconfigure(0, weight=1)
 
-        if phone and phone != "Non visible":
-            ctk.CTkLabel(
-                info_frame,
-                text=f"Tel: {phone}",
-                font=ctk.CTkFont(size=11),
-                text_color=SUBTEXT,
-                anchor="w",
-            ).grid(row=1, column=0, sticky="w", pady=2)
+        self.feedback = ctk.CTkLabel(right_scroll, text="", font=ctk.CTkFont(size=13), text_color=GREEN)
 
-        # Logout button
-        logout_btn = ctk.CTkButton(
-            left,
-            text="Deconnexion",
-            fg_color=RED,
-            hover_color="#a83232",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            corner_radius=8,
-            width=150,
-            height=35,
-            command=self.on_logout,
-        )
-        logout_btn.grid(row=8, column=0, pady=(10, 20))
+        # --- STATUS SECTION ---
+        self._section_title(right_scroll, "Statut", 0)
 
-        # --- Right: Account management ---
-        right = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=15)
-        right.grid(row=0, column=1, padx=(8, 15), pady=15, sticky="nsew")
-        right.grid_columnconfigure(0, weight=1)
+        status_card = ctk.CTkFrame(right_scroll, fg_color=CARD, corner_radius=14, border_width=1, border_color=CARD_BORDER)
+        status_card.grid(row=1, column=0, sticky="ew", pady=(0, 12))
 
-        manage_title = ctk.CTkLabel(
-            right,
-            text="Gestion du compte",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color=ACCENT,
-        )
-        manage_title.grid(row=0, column=0, pady=(20, 20), padx=20, sticky="w")
-
-        # --- Status section ---
-        status_section = ctk.CTkFrame(right, fg_color="#0f3460", corner_radius=10)
-        status_section.grid(row=1, column=0, padx=20, pady=(0, 15), sticky="ew")
-        status_section.grid_columnconfigure(1, weight=1)
+        status_inner = ctk.CTkFrame(status_card, fg_color="transparent")
+        status_inner.pack(padx=20, pady=18)
 
         ctk.CTkLabel(
-            status_section,
-            text="Statut en ligne",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            text_color=TEXT,
-        ).grid(row=0, column=0, columnspan=4, padx=15, pady=(12, 8), sticky="w")
+            status_inner, text="Change ton statut de presence",
+            font=ctk.CTkFont(size=12), text_color=TEXT_DIM
+        ).pack(pady=(0, 12))
+
+        btn_frame = ctk.CTkFrame(status_inner, fg_color="transparent")
+        btn_frame.pack()
 
         statuses = [
-            ("En ligne", "online", GREEN),
-            ("Inactif", "idle", YELLOW),
-            ("Ne pas deranger", "dnd", RED),
-            ("Invisible", "invisible", GRAY),
+            ("En ligne", "online", GREEN, "#000"),
+            ("Inactif", "idle", YELLOW, "#000"),
+            ("Ne pas deranger", "dnd", RED, TEXT),
+            ("Invisible", "invisible", "#555555", TEXT),
+            ("Streaming", "streaming", PURPLE, TEXT),
         ]
 
-        for i, (label, value, color) in enumerate(statuses):
-            btn = ctk.CTkButton(
-                status_section,
-                text=label,
-                width=120,
-                height=35,
-                fg_color=color,
-                hover_color=ACCENT_HOVER,
-                text_color="#000000" if color in (GREEN, YELLOW) else TEXT,
-                font=ctk.CTkFont(size=12, weight="bold"),
-                corner_radius=8,
-                command=lambda v=value: self.set_status(v),
-            )
-            btn.grid(row=1, column=i, padx=8, pady=(0, 12))
+        for i, (label, val, bg, fg) in enumerate(statuses):
+            ctk.CTkButton(
+                btn_frame, text=f"● {label}", width=130, height=40,
+                fg_color=bg, hover_color=ORANGE_DARK,
+                text_color=fg, font=ctk.CTkFont(size=12, weight="bold"),
+                corner_radius=10, command=lambda v=val: self.set_status(v),
+            ).grid(row=0 if i < 3 else 1, column=i % 3, padx=5, pady=4)
 
-        # --- Custom status ---
-        custom_section = ctk.CTkFrame(right, fg_color="#0f3460", corner_radius=10)
-        custom_section.grid(row=2, column=0, padx=20, pady=(0, 15), sticky="ew")
-        custom_section.grid_columnconfigure(0, weight=1)
+        # Streaming details (shown for streaming)
+        self.stream_frame = ctk.CTkFrame(status_inner, fg_color=CARD2, corner_radius=10)
 
         ctk.CTkLabel(
-            custom_section,
-            text="Statut personnalise",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            text_color=TEXT,
-        ).grid(row=0, column=0, columnspan=2, padx=15, pady=(12, 8), sticky="w")
-
-        self.custom_text = ctk.CTkEntry(
-            custom_section,
-            placeholder_text="Ton texte de statut...",
-            height=38,
-            font=ctk.CTkFont(size=13),
-            fg_color=DARK_BG,
-            border_color=ACCENT,
-            text_color=TEXT,
-            corner_radius=8,
-        )
-        self.custom_text.grid(row=1, column=0, padx=(15, 8), pady=(0, 12), sticky="ew")
-
-        apply_custom = ctk.CTkButton(
-            custom_section,
-            text="Appliquer",
-            width=100,
-            height=38,
-            fg_color=ACCENT,
-            hover_color=ACCENT_HOVER,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            corner_radius=8,
-            command=self.apply_custom_status,
-        )
-        apply_custom.grid(row=1, column=1, padx=(0, 15), pady=(0, 12))
-
-        clear_custom = ctk.CTkButton(
-            custom_section,
-            text="Effacer le statut",
-            width=130,
-            height=32,
-            fg_color=RED,
-            hover_color="#a83232",
-            font=ctk.CTkFont(size=12),
-            corner_radius=8,
-            command=self.clear_custom_status,
-        )
-        clear_custom.grid(row=2, column=0, columnspan=2, padx=15, pady=(0, 12))
-
-        # --- Streaming status ---
-        stream_section = ctk.CTkFrame(right, fg_color="#0f3460", corner_radius=10)
-        stream_section.grid(row=3, column=0, padx=20, pady=(0, 15), sticky="ew")
-        stream_section.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            stream_section,
-            text="Statut Streaming",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            text_color=TEXT,
-        ).grid(row=0, column=0, columnspan=2, padx=15, pady=(12, 8), sticky="w")
-
-        ctk.CTkLabel(
-            stream_section,
-            text="Simule un statut 'En stream' sur ton profil",
-            font=ctk.CTkFont(size=11),
-            text_color=SUBTEXT,
-        ).grid(row=1, column=0, columnspan=2, padx=15, pady=(0, 8), sticky="w")
+            self.stream_frame, text="Details du stream", font=ctk.CTkFont(size=12, weight="bold"), text_color=PURPLE
+        ).pack(pady=(10, 5))
 
         self.stream_name = ctk.CTkEntry(
-            stream_section,
-            placeholder_text="Nom du stream (ex: Brawl Stars)...",
-            height=38,
-            font=ctk.CTkFont(size=13),
-            fg_color=DARK_BG,
-            border_color="#9B59B6",
-            text_color=TEXT,
-            corner_radius=8,
+            self.stream_frame, placeholder_text="Nom du jeu/stream...",
+            height=38, font=ctk.CTkFont(size=12), fg_color=INPUT_BG,
+            border_color=PURPLE, border_width=1, text_color=TEXT, corner_radius=8, width=350
         )
-        self.stream_name.grid(row=2, column=0, padx=(15, 8), pady=(0, 8), sticky="ew")
+        self.stream_name.pack(padx=15, pady=(0, 5))
 
         self.stream_url = ctk.CTkEntry(
-            stream_section,
-            placeholder_text="URL Twitch (ex: https://twitch.tv/toi)...",
-            height=38,
-            font=ctk.CTkFont(size=13),
-            fg_color=DARK_BG,
-            border_color="#9B59B6",
-            text_color=TEXT,
-            corner_radius=8,
+            self.stream_frame, placeholder_text="URL Twitch (https://twitch.tv/...)...",
+            height=38, font=ctk.CTkFont(size=12), fg_color=INPUT_BG,
+            border_color=PURPLE, border_width=1, text_color=TEXT, corner_radius=8, width=350
         )
-        self.stream_url.grid(row=3, column=0, padx=(15, 8), pady=(0, 8), sticky="ew")
+        self.stream_url.pack(padx=15, pady=(0, 10))
 
-        stream_btn = ctk.CTkButton(
-            stream_section,
-            text="Lancer le Streaming",
-            width=160,
-            height=38,
-            fg_color="#9B59B6",
-            hover_color="#7D3C98",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            corner_radius=8,
-            command=self.start_streaming,
-        )
-        stream_btn.grid(row=2, column=1, padx=(0, 15), pady=(0, 8))
+        # --- CUSTOM STATUS ---
+        self._section_title(right_scroll, "Statut Personnalise", 2)
 
-        stop_stream_btn = ctk.CTkButton(
-            stream_section,
-            text="Arreter",
-            width=160,
-            height=38,
-            fg_color=RED,
-            hover_color="#a83232",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            corner_radius=8,
-            command=self.stop_streaming,
-        )
-        stop_stream_btn.grid(row=3, column=1, padx=(0, 15), pady=(0, 8))
+        custom_card = ctk.CTkFrame(right_scroll, fg_color=CARD, corner_radius=14, border_width=1, border_color=CARD_BORDER)
+        custom_card.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        custom_inner = ctk.CTkFrame(custom_card, fg_color="transparent")
+        custom_inner.pack(padx=20, pady=18, fill="x")
+        custom_inner.grid_columnconfigure(0, weight=1)
 
-        # --- Feedback label ---
-        self.feedback = ctk.CTkLabel(
-            right, text="", font=ctk.CTkFont(size=13), text_color=GREEN
+        self.custom_emoji = ctk.CTkEntry(
+            custom_inner, placeholder_text="Emoji (ex: 🎮)...",
+            height=40, width=100, font=ctk.CTkFont(size=14), fg_color=INPUT_BG,
+            border_color=INPUT_BORDER, border_width=1, text_color=TEXT, corner_radius=10,
         )
-        self.feedback.grid(row=4, column=0, pady=(5, 15))
+        self.custom_emoji.grid(row=0, column=0, sticky="w", padx=(0, 8), pady=(0, 8))
+
+        self.custom_text = ctk.CTkEntry(
+            custom_inner, placeholder_text="Ton texte de statut...",
+            height=40, font=ctk.CTkFont(size=13), fg_color=INPUT_BG,
+            border_color=INPUT_BORDER, border_width=1, text_color=TEXT, corner_radius=10,
+        )
+        self.custom_text.grid(row=0, column=1, sticky="ew", pady=(0, 8))
+
+        btn_row = ctk.CTkFrame(custom_inner, fg_color="transparent")
+        btn_row.grid(row=1, column=0, columnspan=2, sticky="ew")
+
+        ctk.CTkButton(
+            btn_row, text="Appliquer", width=150, height=40,
+            fg_color=ORANGE, hover_color=ORANGE_DARK,
+            font=ctk.CTkFont(size=13, weight="bold"), corner_radius=10,
+            command=self.apply_custom,
+        ).pack(side="left", padx=(0, 8))
+
+        ctk.CTkButton(
+            btn_row, text="Effacer", width=120, height=40,
+            fg_color="#333333", hover_color="#444444",
+            font=ctk.CTkFont(size=13, weight="bold"), corner_radius=10,
+            command=self.clear_custom,
+        ).pack(side="left")
+
+        # --- CHANGE PASSWORD ---
+        self._section_title(right_scroll, "Changer le Mot de Passe", 4)
+
+        pw_card = ctk.CTkFrame(right_scroll, fg_color=CARD, corner_radius=14, border_width=1, border_color=CARD_BORDER)
+        pw_card.grid(row=5, column=0, sticky="ew", pady=(0, 12))
+        pw_inner = ctk.CTkFrame(pw_card, fg_color="transparent")
+        pw_inner.pack(padx=20, pady=18, fill="x")
+
+        ctk.CTkLabel(
+            pw_inner, text="⚠ Necessite ton mot de passe actuel",
+            font=ctk.CTkFont(size=11), text_color=ORANGE
+        ).pack(anchor="w", pady=(0, 10))
+
+        pw_fields = ctk.CTkFrame(pw_inner, fg_color="transparent")
+        pw_fields.pack(fill="x")
+        pw_fields.grid_columnconfigure(0, weight=1)
+        pw_fields.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(pw_fields, text="Mot de passe actuel", font=ctk.CTkFont(size=11, weight="bold"), text_color=TEXT_DIM).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        self.old_pw = ctk.CTkEntry(
+            pw_fields, placeholder_text="Mot de passe actuel...", show="*",
+            height=42, font=ctk.CTkFont(size=13), fg_color=INPUT_BG,
+            border_color=INPUT_BORDER, border_width=1, text_color=TEXT, corner_radius=10,
+        )
+        self.old_pw.grid(row=1, column=0, sticky="ew", padx=(0, 8), pady=(0, 10))
+
+        ctk.CTkLabel(pw_fields, text="Nouveau mot de passe", font=ctk.CTkFont(size=11, weight="bold"), text_color=TEXT_DIM).grid(row=0, column=1, sticky="w", pady=(0, 4))
+        self.new_pw = ctk.CTkEntry(
+            pw_fields, placeholder_text="Nouveau mot de passe...", show="*",
+            height=42, font=ctk.CTkFont(size=13), fg_color=INPUT_BG,
+            border_color=INPUT_BORDER, border_width=1, text_color=TEXT, corner_radius=10,
+        )
+        self.new_pw.grid(row=1, column=1, sticky="ew", pady=(0, 10))
+
+        ctk.CTkLabel(pw_fields, text="Confirmer", font=ctk.CTkFont(size=11, weight="bold"), text_color=TEXT_DIM).grid(row=2, column=0, sticky="w", pady=(0, 4))
+        self.confirm_pw = ctk.CTkEntry(
+            pw_fields, placeholder_text="Confirmer le nouveau...", show="*",
+            height=42, font=ctk.CTkFont(size=13), fg_color=INPUT_BG,
+            border_color=INPUT_BORDER, border_width=1, text_color=TEXT, corner_radius=10,
+        )
+        self.confirm_pw.grid(row=3, column=0, sticky="ew", padx=(0, 8), pady=(0, 10))
+
+        ctk.CTkButton(
+            pw_inner, text="Changer le mot de passe", width=250, height=42,
+            fg_color=RED, hover_color=RED_DARK,
+            font=ctk.CTkFont(size=13, weight="bold"), corner_radius=10,
+            command=self.change_password,
+        ).pack(pady=(5, 0))
+
+        # --- FEEDBACK ---
+        self.feedback.grid(row=6, column=0, pady=(8, 5))
+
+    def _section_title(self, parent, text, row):
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+        frame.grid(row=row, column=0, sticky="ew", pady=(8, 6))
+        ctk.CTkFrame(frame, height=1, fg_color=ORANGE_DARK, width=30).pack(side="left", padx=(0, 10), pady=1)
+        ctk.CTkLabel(
+            frame, text=text, font=ctk.CTkFont(size=16, weight="bold"), text_color=ORANGE
+        ).pack(side="left")
+        ctk.CTkFrame(frame, height=1, fg_color=ORANGE_DARK).pack(side="left", fill="x", expand=True, padx=(10, 0), pady=1)
 
     def show_feedback(self, text, color=GREEN):
         self.feedback.configure(text=text, text_color=color)
-        self.after(3000, lambda: self.feedback.configure(text=""))
+        self.after(4000, lambda: self.feedback.configure(text=""))
 
     def set_status(self, status):
+        if status == "streaming":
+            self.stream_frame.pack(pady=(12, 0), fill="x")
+            name = self.stream_name.get().strip() or "Stream"
+            url = self.stream_url.get().strip()
+
+            def task():
+                try:
+                    api_set_status(self.token, "online")
+                    api_custom_status(self.token, text=f"🔴 En live: {name}")
+                    self.after(0, lambda: self.show_feedback(f"Statut Streaming active: {name}", PURPLE))
+                except Exception as e:
+                    self.after(0, lambda: self.show_feedback(f"Erreur: {e}", RED))
+
+            threading.Thread(target=task, daemon=True).start()
+            return
+
+        self.stream_frame.pack_forget()
+
         def task():
             try:
-                update_status(self.token, status)
-                self.after(0, lambda: self.show_feedback(f"Statut change: {status}"))
+                api_set_status(self.token, status)
+                names = {"online": "En ligne", "idle": "Inactif", "dnd": "Ne pas deranger", "invisible": "Invisible"}
+                self.after(0, lambda: self.show_feedback(f"Statut: {names.get(status, status)}"))
             except Exception as e:
                 self.after(0, lambda: self.show_feedback(f"Erreur: {e}", RED))
 
         threading.Thread(target=task, daemon=True).start()
 
-    def apply_custom_status(self):
+    def apply_custom(self):
         text = self.custom_text.get().strip()
-        if not text:
-            self.show_feedback("Ecris un texte de statut !", RED)
+        emoji = self.custom_emoji.get().strip()
+        if not text and not emoji:
+            self.show_feedback("Ecris un texte ou un emoji !", ORANGE)
             return
 
         def task():
             try:
-                update_custom_status(self.token, text=text)
-                self.after(0, lambda: self.show_feedback(f"Statut perso applique !"))
+                api_custom_status(self.token, text=text or None, emoji=emoji or None)
+                self.after(0, lambda: self.show_feedback("Statut personnalise applique !"))
             except Exception as e:
                 self.after(0, lambda: self.show_feedback(f"Erreur: {e}", RED))
 
         threading.Thread(target=task, daemon=True).start()
 
-    def clear_custom_status(self):
+    def clear_custom(self):
         def task():
             try:
-                update_custom_status(self.token)
-                self.after(0, lambda: self.show_feedback("Statut perso efface !"))
+                api_custom_status(self.token)
+                self.after(0, lambda: self.show_feedback("Statut personnalise efface !"))
             except Exception as e:
                 self.after(0, lambda: self.show_feedback(f"Erreur: {e}", RED))
 
         threading.Thread(target=task, daemon=True).start()
 
-    def start_streaming(self):
-        name = self.stream_name.get().strip() or "Stream"
-        url = self.stream_url.get().strip() or "https://twitch.tv/"
+    def change_password(self):
+        old = self.old_pw.get()
+        new = self.new_pw.get()
+        confirm = self.confirm_pw.get()
+
+        if not old:
+            self.show_feedback("Entre ton mot de passe actuel !", ORANGE)
+            return
+        if not new:
+            self.show_feedback("Entre un nouveau mot de passe !", ORANGE)
+            return
+        if len(new) < 8:
+            self.show_feedback("Le mot de passe doit faire au moins 8 caracteres !", RED)
+            return
+        if new != confirm:
+            self.show_feedback("Les mots de passe ne correspondent pas !", RED)
+            return
 
         def task():
             try:
-                headers = {
-                    "Authorization": self.token,
-                    "Content-Type": "application/json",
-                }
-                payload = {
-                    "activities": [
-                        {
-                            "name": name,
-                            "type": 1,
-                            "url": url,
-                        }
-                    ],
-                    "status": "online",
-                    "since": 0,
-                    "afk": False,
-                }
-                # Note: activity streaming requires a gateway connection
-                # This sets custom status as a workaround
-                update_custom_status(self.token, text=f"🔴 En live: {name}")
-                self.after(
-                    0,
-                    lambda: self.show_feedback(f"Streaming simule: {name}"),
-                )
-            except Exception as e:
-                self.after(0, lambda: self.show_feedback(f"Erreur: {e}", RED))
-
-        threading.Thread(target=task, daemon=True).start()
-
-    def stop_streaming(self):
-        def task():
-            try:
-                update_custom_status(self.token)
-                self.after(0, lambda: self.show_feedback("Streaming arrete !"))
+                result = api_change_password(self.token, old, new)
+                new_token = result.get("token")
+                if new_token:
+                    self.token = new_token
+                self.after(0, lambda: self.show_feedback("Mot de passe change avec succes !", GREEN))
+                self.after(0, lambda: (
+                    self.old_pw.delete(0, "end"),
+                    self.new_pw.delete(0, "end"),
+                    self.confirm_pw.delete(0, "end"),
+                ))
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 401:
+                    msg = "Mot de passe actuel incorrect !"
+                elif e.response is not None and e.response.status_code == 400:
+                    msg = "Mot de passe invalide (min 8 car.)"
+                else:
+                    msg = f"Erreur: {e}"
+                self.after(0, lambda: self.show_feedback(msg, RED))
             except Exception as e:
                 self.after(0, lambda: self.show_feedback(f"Erreur: {e}", RED))
 
@@ -628,34 +604,25 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Discord Manager")
-        self.geometry("850x620")
-        self.minsize(750, 550)
-        self.configure(fg_color=DARK_BG)
+        self.geometry("950x650")
+        self.minsize(850, 580)
+        self.configure(fg_color=BG)
 
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-
-        self.current_frame = None
+        self.current = None
         self.show_login()
 
     def show_login(self):
-        if self.current_frame:
-            self.current_frame.destroy()
-        self.current_frame = LoginFrame(self, on_login=self.on_login_success)
-        self.current_frame.grid(row=0, column=0, sticky="nsew")
+        if self.current:
+            self.current.destroy()
+        self.current = LoginFrame(self, on_login=self.login_ok)
+        self.current.pack(fill="both", expand=True)
 
-    def on_login_success(self, token, user_data, avatar_img):
-        if self.current_frame:
-            self.current_frame.destroy()
-        self.current_frame = MainFrame(
-            self, token, user_data, avatar_img, on_logout=self.show_login
-        )
-        self.current_frame.grid(row=0, column=0, sticky="nsew")
-
-    def show_main(self):
-        pass
+    def login_ok(self, token, user, settings, avatar):
+        if self.current:
+            self.current.destroy()
+        self.current = MainFrame(self, token, user, settings, avatar, on_logout=self.show_login)
+        self.current.pack(fill="both", expand=True)
 
 
 if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+    App().mainloop()
