@@ -253,8 +253,8 @@ class MainFrame(ctk.CTkFrame):
         orange_top = ctk.CTkFrame(left, height=60, fg_color=ORANGE, corner_radius=0)
         orange_top.pack(fill="x")
         # Rounded top corners hack
-        corner_fix = ctk.CTkFrame(left, height=16, fg_color=CARD, corner_radius=16)
-        corner_fix.place(relx=0, rely=0, y=50, relwidth=1, height=20)
+        corner_fix = ctk.CTkFrame(left, height=20, width=400, fg_color=CARD, corner_radius=16)
+        corner_fix.place(relx=0, rely=0, y=50, relwidth=1)
 
         profile_inner = ctk.CTkFrame(left, fg_color="transparent")
         profile_inner.pack(fill="both", expand=True, padx=15, pady=(20, 15))
