@@ -105,30 +105,29 @@ class LoginFrame(ctk.CTkFrame):
     def __init__(self, master, on_login):
         super().__init__(master, fg_color=BG)
         self.on_login = on_login
-        self.grid_rowconfigure((0, 1, 2, 3, 4, 5), weight=1)
-        self.grid_columnconfigure(0, weight=1)
 
         # Top accent line
-        accent_line = ctk.CTkFrame(self, height=3, fg_color=ORANGE, corner_radius=0)
-        accent_line.grid(row=0, column=0, sticky="new", pady=0)
+        ctk.CTkFrame(self, height=3, fg_color=ORANGE, corner_radius=0).pack(fill="x")
+
+        # Spacer top
+        ctk.CTkFrame(self, height=1, fg_color="transparent").pack(expand=True)
 
         # Title
         ctk.CTkLabel(
             self, text="DISCORD", font=ctk.CTkFont(size=42, weight="bold"), text_color=ORANGE
-        ).grid(row=1, column=0, pady=(0, 0), sticky="s")
+        ).pack(pady=(0, 0))
 
         ctk.CTkLabel(
             self, text="MANAGER", font=ctk.CTkFont(size=42, weight="bold"), text_color=TEXT
-        ).grid(row=2, column=0, pady=(0, 0), sticky="n")
+        ).pack(pady=(0, 5))
 
         ctk.CTkLabel(
             self, text="━━━━━━━━━━━━━━━━━━━", font=ctk.CTkFont(size=14), text_color=ORANGE_DARK
-        ).grid(row=2, column=0, pady=(45, 0), sticky="n")
+        ).pack(pady=(0, 25))
 
         # Card
         card = ctk.CTkFrame(self, fg_color=CARD, corner_radius=20, border_width=1, border_color=CARD_BORDER)
-        card.grid(row=3, column=0, padx=60)
-        card.grid_columnconfigure(0, weight=1)
+        card.pack(padx=60)
 
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(padx=40, pady=35)
@@ -165,12 +164,15 @@ class LoginFrame(ctk.CTkFrame):
         self.login_btn.pack()
 
         self.status = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=13), text_color=RED)
-        self.status.grid(row=4, column=0, pady=(10, 0))
+        self.status.pack(pady=(15, 0))
+
+        # Spacer bottom
+        ctk.CTkFrame(self, height=1, fg_color="transparent").pack(expand=True)
 
         # Bottom
         ctk.CTkLabel(
             self, text="v1.0  ●  by JZS", font=ctk.CTkFont(size=11), text_color=TEXT_DARK
-        ).grid(row=5, column=0, pady=(0, 15), sticky="s")
+        ).pack(pady=(0, 15))
 
         self.token_entry.bind("<Return>", lambda e: self.do_login())
 
