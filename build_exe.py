@@ -9,7 +9,7 @@ The .exe will be in the dist/ folder.
 """
 import subprocess
 import sys
-import importlib
+import importlib.util
 import os
 
 
