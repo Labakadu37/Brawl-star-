@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; script-src 'self';" />
+  <title>Discord Account Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ===================== LOGIN ===================== -->
+  <div id="login" class="login">
+    <div class="login-card">
+      <h1>Discord Account Manager</h1>
+      <p class="subtitle">Gestion de ton propre compte — usage personnel</p>
+
+      <label for="token">Token du compte</label>
+      <div class="token-row">
+        <input id="token" type="password" placeholder="Colle ton token ici" autocomplete="off" spellcheck="false" />
+        <button id="reveal" type="button" class="ghost" title="Afficher / masquer">👁</button>
+      </div>
+
+      <label class="remember">
+        <input id="remember" type="checkbox" />
+        Se souvenir de moi sur ce PC (token chiffré localement)
+      </label>
+
+      <button id="loginBtn" class="primary">Se connecter</button>
+      <div id="loginError" class="error"></div>
+
+      <p class="warn">
+        Piloter un compte via son token est contraire aux CGU de Discord
+        (self-bot) et peut entraîner un bannissement. Utilise-le en connaissance
+        de cause, sur ton compte uniquement.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== APP ===================== -->
+  <div id="app" class="app hidden">
+    <!-- Left: account preview -->
+    <aside class="preview">
+      <div id="banner" class="banner"></div>
+      <div class="avatar-wrap">
+        <img id="avatar" class="avatar" alt="avatar" />
+        <span id="statusDot" class="status-dot online"></span>
+      </div>
+      <div class="names">
+        <div id="displayName" class="display-name">—</div>
+        <div id="username" class="username">—</div>
+      </div>
+      <div id="customStatusPreview" class="custom-status"></div>
+      <div class="preview-meta">
+        <div><span class="k">ID</span><span id="userId" class="v">—</span></div>
+        <div><span class="k">Email</span><span id="email" class="v">—</span></div>
+        <div><span class="k">Téléphone</span><span id="phone" class="v">—</span></div>
+        <div><span class="k">2FA</span><span id="mfa" class="v">—</span></div>
+        <div><span class="k">Nitro</span><span id="nitro" class="v">—</span></div>
+      </div>
+      <button id="logout" class="ghost full">Se déconnecter</button>
+    </aside>
+
+    <!-- Right: tools -->
+    <main class="tools">
+      <div class="tabs">
+        <button class="tab active" data-tab="status">Statut</button>
+        <button class="tab" data-tab="profile">Profil</button>
+        <button class="tab" data-tab="security">Sécurité</button>
+      </div>
+
+      <!-- STATUS -->
+      <section class="panel active" data-panel="status">
+        <h2>Statut de présence</h2>
+        <div class="status-grid">
+          <button class="status-btn" data-status="online"><span class="dot online"></span>En ligne</button>
+          <button class="status-btn" data-status="idle"><span class="dot idle"></span>Absent</button>
+          <button class="status-btn" data-status="dnd"><span class="dot dnd"></span>Ne pas déranger</button>
+          <button class="status-btn" data-status="invisible"><span class="dot invisible"></span>Invisible</button>
+        </div>
+
+        <h2>Statut personnalisé</h2>
+        <div class="field-row">
+          <input id="customText" type="text" maxlength="128" placeholder="Ce que tu veux afficher" />
+          <input id="customEmoji" type="text" maxlength="32" placeholder="😀 (optionnel)" class="emoji-in" />
+        </div>
+        <button id="saveCustom" class="primary small">Appliquer le statut perso</button>
+
+        <h2>Activité « Streaming »</h2>
+        <div class="field-row">
+          <input id="streamName" type="text" placeholder="Titre affiché (ex: Brawl Stars)" />
+          <input id="streamUrl" type="text" placeholder="URL Twitch/YouTube (https://twitch.tv/...)" />
+        </div>
+        <div class="btn-row">
+          <button id="setStream" class="primary small">Passer en Streaming</button>
+          <button id="clearActivity" class="ghost small">Retirer l'activité</button>
+        </div>
+        <p class="hint">Une URL Twitch/YouTube valide est requise pour que le badge violet « Streaming » apparaisse.</p>
+      </section>
+
+      <!-- PROFILE -->
+      <section class="panel" data-panel="profile">
+        <h2>Nom affiché (global)</h2>
+        <div class="field-row">
+          <input id="globalName" type="text" maxlength="32" placeholder="Nom affiché" />
+        </div>
+        <button id="saveGlobalName" class="primary small">Enregistrer</button>
+
+        <h2>Bio / À propos de moi</h2>
+        <textarea id="bio" maxlength="190" rows="4" placeholder="Ta bio (190 caractères max)"></textarea>
+        <div class="counter"><span id="bioCount">0</span>/190</div>
+        <button id="saveBio" class="primary small">Enregistrer la bio</button>
+
+        <h2>Couleur d'accent du profil</h2>
+        <div class="field-row">
+          <input id="accent" type="color" value="#5865f2" />
+          <span class="hint inline">Couleur de bannière si aucune image n'est définie.</span>
+        </div>
+        <button id="saveAccent" class="primary small">Enregistrer la couleur</button>
+
+        <div id="profileMsg" class="msg"></div>
+      </section>
+
+      <!-- SECURITY -->
+      <section class="panel" data-panel="security">
+        <h2>Changer le mot de passe</h2>
+        <p class="hint">Discord exige le mot de passe actuel pour en définir un nouveau.</p>
+        <div class="field-col">
+          <input id="curPass" type="password" placeholder="Mot de passe actuel" autocomplete="off" />
+          <input id="newPass" type="password" placeholder="Nouveau mot de passe" autocomplete="off" />
+          <input id="newPass2" type="password" placeholder="Confirmer le nouveau mot de passe" autocomplete="off" />
+        </div>
+        <button id="savePass" class="danger small">Changer le mot de passe</button>
+        <p class="hint">Après un changement de mot de passe, Discord régénère le token : il faudra te reconnecter avec le nouveau.</p>
+        <div id="securityMsg" class="msg"></div>
+      </section>
+
+      <div id="toast" class="toast hidden"></div>
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

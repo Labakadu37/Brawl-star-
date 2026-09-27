@@ -21,3 +21,8 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+
+# Node / Electron
+node_modules/
+app/dist/
+app/node_modules/
