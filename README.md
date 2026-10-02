@@ -69,3 +69,10 @@ This is a client-side, cosmetic mod for personal use. It does not touch
 network protocol code, does not confer gameplay advantage, and does not
 redistribute Supercell's assets. Do not upload the resulting APK anywhere;
 build it yourself.
+
+---
+
+## DARK AI
+
+The `dark-ai/` folder holds a separate project: a local, dark-themed AI chat
+(Ollama + a small Python server + web UI). See `dark-ai/README.md`.
