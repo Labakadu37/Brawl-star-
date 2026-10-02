@@ -80,9 +80,43 @@
   #send { background: var(--red); border-color: var(--red); color: #fff; padding: 12px 18px; font-weight: 600; }
   #send:hover { background: var(--red-hi); }
   #status { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  #setup {
+    position: fixed; inset: 0; background: var(--bg); z-index: 10;
+    display: none; overflow-y: auto; padding: 32px 16px;
+  }
+  #setup .box { max-width: 560px; margin: 0 auto; text-align: center; }
+  #setup img { width: 150px; height: 150px; border-radius: 50%; animation: pulse 4s ease-in-out infinite; }
+  #setup h2 { color: var(--red); letter-spacing: 6px; margin: 12px 0 4px; }
+  #setup p { color: var(--muted); margin: 6px 0 18px; }
+  .choices { display: grid; gap: 8px; text-align: left; margin-bottom: 18px; }
+  .choice {
+    display: flex; gap: 12px; align-items: center; padding: 10px 12px; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+  }
+  .choice:hover { border-color: #3a1214; }
+  .choice:has(input:checked) { border-color: var(--red); box-shadow: 0 0 12px rgba(196, 22, 28, .25); }
+  .choice input { accent-color: var(--red); }
+  .choice b { color: #fff; }
+  .choice small { display: block; color: var(--muted); }
+  .choice .tag { margin-left: auto; font-size: 11px; color: var(--red-hi); letter-spacing: 1px; }
+  .bigbtn { background: var(--red); border-color: var(--red); color: #fff; padding: 12px 28px; font-size: 15px; font-weight: 600; }
+  .bigbtn:hover { background: var(--red-hi); }
+  .bar { height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; margin: 14px 0 8px; }
+  .bar div { height: 100%; width: 0; background: var(--red); box-shadow: 0 0 10px var(--red); transition: width .3s; }
+  .bar.indet div { width: 30%; animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { from { margin-left: -30%; } to { margin-left: 100%; } }
+  #setupErr { color: var(--red-hi); }
 </style>
 </head>
 <body>
+<div id="setup"><div class="box">
+  <img src="logo.png" alt="">
+  <h2>DARK</h2>
+  <div id="setupBody"></div>
+  <p id="setupErr"></p>
+</div></div>
+
 <header>
   <img src="logo.png" alt="">
   <h1>DARK</h1>
@@ -245,9 +279,82 @@ $("reset").addEventListener("click", () => {
   redraw();
 });
 
+// ---------- Installation au premier lancement ----------
+const MODELS = [
+  ["qwen3:4b", "Léger", "8 Go de RAM, pas de carte graphique — 2,5 Go", 0],
+  ["qwen3:8b", "Équilibré", "16 Go de RAM ou GPU 8 Go — 5 Go", 16],
+  ["qwen3:14b", "Fort", "GPU 12 Go — 9 Go", 32],
+  ["gpt-oss:20b", "Très fort", "GPU 16 Go — 14 Go", 32],
+  ["qwen3:32b", "Brutal", "GPU 24 Go — 20 Go", 48],
+  ["gpt-oss:120b", "Le maximum", "64 Go+ de RAM/VRAM — 65 Go", 96],
+];
+const setup = $("setup"), setupBody = $("setupBody"), setupErr = $("setupErr");
+let shown = "";
+
+function recommended(ram) {
+  let best = MODELS[0][0];
+  for (const m of MODELS) if (ram >= m[3] && m[3] <= 16) best = m[0];
+  return best;
+}
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  if (!r.ok && r.status !== 202) throw new Error(await r.text());
+}
+function view(key, html) {
+  if (shown === key) return false;
+  shown = key;
+  setupBody.innerHTML = html;
+  return true;
+}
+
+async function poll() {
+  let s;
+  try { s = await (await fetch("/api/status")).json(); } catch { setTimeout(poll, 1000); return; }
+  setupErr.textContent = s.error || "";
+  if (s.busy) {
+    view("busy", '<p id="step"></p><div class="bar" id="bar"><div></div></div><p>Ne ferme pas la fenêtre.</p>');
+    $("step").textContent = s.step;
+    $("bar").classList.toggle("indet", s.progress < 0);
+    $("bar").firstElementChild.style.width = s.progress < 0 ? "" : (s.progress * 100).toFixed(1) + "%";
+  } else if (s.ollama === "starting") {
+    view("starting", '<p>Réveil du moteur...</p><div class="bar indet"><div></div></div>');
+  } else if (s.ollama === "missing") {
+    if (view("missing", '<p>DARK a besoin de son moteur : <b>Ollama</b> (gratuit, ~1 Go).</p>' +
+        '<button class="bigbtn" id="getOllama">Installer le moteur</button> <button id="retry">Réessayer</button>')) {
+      $("getOllama").onclick = () => post("/api/install-ollama").catch((e) => setupErr.textContent = e.message);
+      $("retry").onclick = () => post("/api/retry").catch(() => {});
+    }
+  } else if (!s.hasModel) {
+    const rec = recommended(s.ramGB);
+    if (view("choose", '<p>Choisis le cerveau de DARK' + (s.ramGB ? ` (ton PC : ${s.ramGB} Go de RAM)` : "") + '.</p>' +
+        '<div class="choices">' + MODELS.map(([id, name, need]) =>
+          `<label class="choice"><input type="radio" name="base" value="${id}" ${id === rec ? "checked" : ""}>` +
+          `<span><b>${name}</b> <small>${id} · ${need}</small></span>${id === rec ? '<span class="tag">CONSEILLÉ</span>' : ""}</label>`
+        ).join("") + '</div><button class="bigbtn" id="go">Télécharger</button>' +
+        '<p>Trop gros pour ton PC = très lent. Dans le doute, prends le conseillé.</p>')) {
+      $("go").onclick = () => {
+        const base = document.querySelector("input[name=base]:checked").value;
+        post("/api/setup", { base }).catch((e) => setupErr.textContent = e.message);
+      };
+    }
+  } else {
+    setup.style.display = "none";
+    shown = "";
+    loadModels();
+    input.focus();
+    return;
+  }
+  setup.style.display = "block";
+  setTimeout(poll, 700);
+}
+
+// Signal de vie : l'appli se ferme toute seule quand la fenêtre est fermée.
+setInterval(() => fetch("/api/ping").catch(() => {}), 5000);
+fetch("/api/ping").catch(() => {});
+
 load();
 redraw();
-loadModels();
+poll();
 </script>
 </body>
 </html>

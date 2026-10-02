@@ -1,54 +1,65 @@
 # DARK AI
 
-IA 100 % locale, style dark. Elle tourne sur ton PC via [Ollama](https://ollama.com) :
-pas d'abonnement, pas d'internet après l'installation, rien ne sort de ta machine.
+IA 100 % locale, style dark, en **un seul fichier : `DARK.exe`**.
+Pas d'abonnement, pas de compte, rien ne quitte ton PC.
 
-## Installation
+## Lancer (Windows 10 / 11)
 
-**Windows** : double-clique sur `install.bat`, puis sur `start.bat`.
+1. Télécharge `dist/DARK.exe` et double-clique dessus.
+2. Si Windows affiche « Windows a protégé votre ordinateur » :
+   **Informations complémentaires → Exécuter quand même**
+   (normal pour un .exe fait maison, non signé).
+3. Au premier lancement, DARK s'occupe de tout dans sa fenêtre :
+   - installe son moteur **Ollama** (un clic),
+   - te fait choisir son cerveau selon ton PC et le télécharge,
+   - crée le modèle `dark` avec sa personnalité.
+4. Les fois suivantes, il s'ouvre direct sur le chat.
+   Ferme la fenêtre et DARK s'arrête tout seul.
 
-**Linux / macOS** :
+## Quel cerveau choisir ?
+
+| Nom        | Modèle         | Il te faut                            | Taille |
+|------------|----------------|---------------------------------------|--------|
+| Léger      | `qwen3:4b`     | 8 Go de RAM, pas de carte graphique   | 2,5 Go |
+| Équilibré  | `qwen3:8b`     | 16 Go de RAM ou GPU 8 Go (conseillé)  | 5 Go   |
+| Fort       | `qwen3:14b`    | GPU 12 Go                             | 9 Go   |
+| Très fort  | `gpt-oss:20b`  | GPU 16 Go                             | 14 Go  |
+| Brutal     | `qwen3:32b`    | GPU 24 Go                             | 20 Go  |
+| Le maximum | `gpt-oss:120b` | 64 Go+ de RAM/VRAM                    | 65 Go  |
+
+Pour changer de cerveau : `ollama rm dark` dans un terminal, puis relance DARK.
+
+## Personnaliser et recompiler
+
+- **Personnalité** : bloc `SYSTEM` dans `Modelfile`.
+- **Logo / couleurs / textes** : `web/logo.png`, `web/favicon.png`, `web/index.html`.
+
+Tout est embarqué dans l'exe, donc recompile après une modif
+(Go 1.22+, marche depuis Windows, Linux ou Mac) :
 
 ```bash
-./install.sh
-./start.sh
+GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -H windowsgui" -o dist/DARK.exe .
 ```
 
-L'interface s'ouvre toute seule sur <http://127.0.0.1:7666>.
+Pour une nouvelle icône d'exe :
+`go-winres simply --icon icone.png --manifest gui --arch amd64`
+(outil : `go install github.com/tc-hib/go-winres@latest`).
 
-L'installateur met en place Ollama (et Python sous Windows si besoin), te fait choisir
-le « cerveau » de DARK selon ton PC, le télécharge, puis crée le modèle `dark`
-avec sa personnalité (fichier `Modelfile`).
+Puis `ollama rm dark` et relance DARK pour appliquer une nouvelle personnalité.
 
-## Quel modèle choisir ?
+## Comment ça marche
 
-| Choix | Modèle         | Il te faut                       |
-|-------|----------------|----------------------------------|
-| 1     | `qwen3:4b`     | 8 Go de RAM, pas de GPU          |
-| 2     | `qwen3:8b`     | 16 Go de RAM ou GPU 8 Go (conseillé) |
-| 3     | `qwen3:14b`    | GPU 12 Go                        |
-| 4     | `gpt-oss:20b`  | GPU 16 Go                        |
-| 5     | `qwen3:32b`    | GPU 24 Go                        |
-| 6     | `gpt-oss:120b` | 64 Go+ de RAM/VRAM — le plus puissant |
-
-Trop gros pour ton PC = très lent. Commence par 2 et monte si ça tourne bien.
-Pour changer plus tard, relance l'installateur.
-
-## Personnaliser
-
-- **Personnalité** : modifie le bloc `SYSTEM` dans `Modelfile`, puis
-  `ollama create dark -f Modelfile`.
-- **Logo** : remplace `web/logo.png` (carré) et `web/favicon.png`.
-- **Couleurs** : variables `--red`, `--bg`… en haut de `web/index.html`.
-- **Port / modèle par défaut** : variables d'environnement `DARK_PORT`, `DARK_MODEL`.
-
-## Fichiers
+`DARK.exe` (Go, aucune dépendance) lance un mini-serveur sur `127.0.0.1:7666`,
+démarre Ollama en arrière-plan, et ouvre l'interface dans une fenêtre
+d'application Edge (sans barre d'adresse). Le journal est dans
+`%LOCALAPPDATA%\DARK\dark.log`.
 
 ```
 dark-ai/
-├── install.bat / install.sh   installation
-├── start.bat / start.sh       lancement
+├── dist/DARK.exe              l'application prête à lancer
+├── main.go                    serveur, installation, fenêtre
+├── sys_windows.go / sys_other.go
+├── rsrc_windows_amd64.syso    icône + infos de l'exe
 ├── Modelfile                  personnalité de DARK
-├── server.py                  petit serveur local (Python, sans dépendance)
-└── web/                       interface (index.html, logo.png, favicon.png)
+└── web/                       interface
 ```
