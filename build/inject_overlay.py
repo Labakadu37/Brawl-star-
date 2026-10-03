@@ -22,7 +22,7 @@ METHOD_HEADER = re.compile(
 METHOD_END = re.compile(r"^\.end\s+method\s*$")
 INJECTION = (
     "    invoke-static {p0}, "
-    "Lcom/jzs/brawl/JZSInit;->install(Landroid/app/Activity;)V\n"
+    "Lcom/jzs/brawl/JZSInit;->install(Landroid/content/Context;)V\n"
 )
 
 

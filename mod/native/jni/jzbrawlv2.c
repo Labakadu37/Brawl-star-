@@ -1,8 +1,7 @@
 /*
- * JZS Brawl V2 - Complete Native Engine
- * Full reconstruction from libhernbrawlv2.so ARM64 disassembly (34,097 lines)
- * All subsystems extracted: aimbot, ESP, entity tracking, LOS, spinner,
- * trajectory prediction, integrity check, config parsing, diagnostics
+ * JZS Brawl V2 - Native engine (pure JZS build)
+ * Subsystems: aimbot, ESP/aura, entity tracking, LOS, spinner,
+ * trajectory prediction, integrity check, config parsing, diagnostics.
  * ARM64 / Android NDK r25+
  */
 #include <jni.h>
@@ -203,6 +202,18 @@ static volatile uint8_t   g_stealth_on  = 0;
 static volatile uint8_t   g_dodge_on    = 0;
 static volatile uint8_t   g_spinner_on  = 0;
 static volatile uint8_t   g_haz_on      = 0;
+/* New JZS V2 features */
+static volatile uint8_t   g_trigger_on  = 0;
+static volatile uint8_t   g_super_on    = 0;
+static volatile uint8_t   g_box_on      = 0;
+static volatile uint8_t   g_line_on     = 0;
+static volatile uint8_t   g_hp_on       = 0;
+static volatile uint8_t   g_name_on     = 0;
+static volatile uint8_t   g_range_on    = 0;
+static volatile uint8_t   g_fps_on      = 0;
+static volatile uint8_t   g_water_on    = 1;
+static volatile uint8_t   g_diag_on     = 0;
+static volatile uint8_t   g_fast_on     = 0;
 
 /* Entity data */
 static volatile uint64_t  g_entity_count = 0;
@@ -691,8 +702,32 @@ static void reload_config(void) {
         if (v >= 0) g_spinner_on = (uint8_t)v;
         v = parse_config_flag(cfg_buf, "jzhaz");
         if (v >= 0) g_haz_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jztrigger");
+        if (v >= 0) g_trigger_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzsuper");
+        if (v >= 0) g_super_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzbox");
+        if (v >= 0) g_box_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzline");
+        if (v >= 0) g_line_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzhp");
+        if (v >= 0) g_hp_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzname");
+        if (v >= 0) g_name_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzrange");
+        if (v >= 0) g_range_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzfps");
+        if (v >= 0) g_fps_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzwater");
+        if (v >= 0) g_water_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzdiag");
+        if (v >= 0) g_diag_on = (uint8_t)v;
+        v = parse_config_flag(cfg_buf, "jzfast");
+        if (v >= 0) g_fast_on = (uint8_t)v;
         g_enabled = (g_aimbot_on || g_aura_on || g_gadget_on ||
-                     g_dodge_on || g_spinner_on || g_haz_on) ? 1 : 0;
+                     g_dodge_on || g_spinner_on || g_haz_on ||
+                     g_trigger_on || g_super_on || g_box_on ||
+                     g_line_on || g_hp_on || g_name_on || g_range_on) ? 1 : 0;
     }
 }
 
@@ -1608,10 +1643,6 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 }
 
 /* ===================== EXPORTED RENDER SYMBOLS ===================== */
-__attribute__((visibility("default")))
-void hern_hazard_render(void) {
-}
-
 __attribute__((visibility("default")))
 void jzs_hazard_render(void) {
 }

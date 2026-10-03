@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# JZS Brawl - build pipeline
+# JZS Brawl - build pipeline (pure JZS build, zero HernBrawl code)
 #
-# Produces a signed APK of Brawl Stars with the JZS V1 overlay injected.
+# Produces a signed APK of Brawl Stars with the JZS V2 mod menu injected.
 #
-# Requirements (install these before running):
+# Requirements:
 #   - JDK 17+                    (javac, jar)
 #   - Android SDK build-tools    (d8, zipalign, apksigner)
-#   - Android NDK                (ndk-build) for libjz.so
+#   - Android NDK                (ndk-build) for libjzs_brawlv2.so
 #   - apktool 2.9+               (https://apktool.org)
 #   - baksmali/smali 3+          (https://github.com/JesusFreke/smali)
 #   - python3
@@ -52,14 +52,15 @@ cp -R "$SMALI_OUT/com/jzs/brawl/." "$WORK/smali/com/jzs/brawl/"
 echo "[5/7] Injecting invoke-static in GameApp.onCreate ..."
 python3 "$ROOT/build/inject_overlay.py" "$WORK/smali/com/supercell/titan/GameApp.smali"
 
-echo "[6/7] Building libjz.so for both ABIs and dropping into lib/ ..."
+echo "[6/7] Building libjzs_brawlv2.so and dropping into lib/arm64-v8a ..."
 pushd "$ROOT/mod/native" >/dev/null
 ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=jni/Android.mk NDK_APPLICATION_MK=jni/Application.mk
 popd >/dev/null
-for abi in armeabi-v7a arm64-v8a; do
-    if [[ -f "$ROOT/mod/native/libs/$abi/libjz.so" ]]; then
+for abi in arm64-v8a; do
+    SO="$ROOT/mod/native/libs/$abi/libjzs_brawlv2.so"
+    if [[ -f "$SO" ]]; then
         mkdir -p "$WORK/lib/$abi"
-        cp "$ROOT/mod/native/libs/$abi/libjz.so" "$WORK/lib/$abi/libjz.so"
+        cp "$SO" "$WORK/lib/$abi/libjzs_brawlv2.so"
     fi
 done
 
@@ -76,7 +77,7 @@ fi
 
 apksigner sign --ks "$OUT/jzs.keystore" --ks-pass pass:jzsjzs \
     --key-pass pass:jzsjzs --v1-signing-enabled true --v2-signing-enabled true \
-    --out "$OUT/jzs-brawl-v1.apk" "$OUT/jzs-brawl-aligned.apk"
+    --out "$OUT/jzs-brawl-v2.apk" "$OUT/jzs-brawl-aligned.apk"
 
 echo
-echo "OK - built: $OUT/jzs-brawl-v1.apk"
+echo "OK - built: $OUT/jzs-brawl-v2.apk"
