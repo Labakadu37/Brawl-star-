@@ -1,6 +1,6 @@
 # Build pipeline
 
-`build/build_mod.sh` runs seven steps in order. Each is trivially
+`build/build_mod.sh` runs eight steps in order. Each is trivially
 inspectable; nothing is magic.
 
 ## 1. Decode the APK
@@ -75,7 +75,30 @@ Native lib is loaded on demand by `JZSInit`; if it is missing the mod
 still works (overlay is pure Java), you just lose the `nativeVersion()`
 JNI export.
 
-## 7. Reassemble, align, sign
+## 7. Replace the app icon
+
+```bash
+python3 build/replace_icon.py com.supercell.brawlstars.apk out/work mod/icon/jzs_icon.png
+```
+
+Uses `aapt2 dump` on the original APK to find every bitmap behind
+`android:icon` / `android:roundIcon` (following adaptive-icon layers) and
+overwrites them in `out/work/res/` with the logo, keeping each file's
+size and format. `resources.arsc` and the binary XML are never touched,
+so nothing else in the app changes. Legacy icons get the full logo, round
+icons a circular cut, adaptive foregrounds the logo in the 72dp visible
+zone and adaptive backgrounds a blurred copy. The monochrome (themed icon)
+layer is left as is.
+
+Needs `aapt2` (build-tools, or found via `$ANDROID_SDK`) and Pillow
+(`pip install pillow`). If either is missing, or anything unexpected
+shows up, the step prints a warning and the build continues with the
+original icon.
+
+To use another logo, replace `mod/icon/jzs_icon.png` (square PNG,
+512×512 or more recommended).
+
+## 8. Reassemble, align, sign
 
 ```bash
 apktool b out/work -o out/jzs-brawl-unsigned.apk

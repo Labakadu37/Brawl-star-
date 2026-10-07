@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # JZS Brawl - build pipeline
 #
-# Produces a signed APK of Brawl Stars with the JZS V1 overlay injected.
+# Produces a signed APK of Brawl Stars with the JZS V1 overlay injected
+# and the launcher icon replaced by the JZS logo.
 #
 # Requirements (install these before running):
 #   - JDK 17+                    (javac, jar)
@@ -9,7 +10,7 @@
 #   - Android NDK                (ndk-build) for libjz.so
 #   - apktool 2.9+               (https://apktool.org)
 #   - baksmali/smali 3+          (https://github.com/JesusFreke/smali)
-#   - python3
+#   - python3 + Pillow          (pip install pillow) for the app icon
 #
 # Usage:
 #     export ANDROID_SDK=/path/to/Android/Sdk
@@ -33,26 +34,26 @@ SMALI_OUT="$OUT/mod-smali"
 rm -rf "$OUT"
 mkdir -p "$OUT" "$CLASSES_OUT" "$SMALI_OUT"
 
-echo "[1/7] Decoding APK with apktool ..."
+echo "[1/8] Decoding APK with apktool ..."
 apktool d --no-res "$INPUT_APK" -o "$WORK" -f
 
-echo "[2/7] Compiling Java overlay classes ..."
+echo "[2/8] Compiling Java overlay classes ..."
 find "$ROOT/mod/src/java" -name "*.java" > "$OUT/srcs.txt"
 javac -source 8 -target 8 -d "$CLASSES_OUT" @"$OUT/srcs.txt"
 
-echo "[3/7] Converting classes to DEX and baksmali'ing ..."
+echo "[3/8] Converting classes to DEX and baksmali'ing ..."
 d8 --output "$OUT/jzs.dex.zip" $(find "$CLASSES_OUT" -name "*.class")
 unzip -o "$OUT/jzs.dex.zip" classes.dex -d "$OUT" >/dev/null
 baksmali d "$OUT/classes.dex" -o "$SMALI_OUT"
 
-echo "[4/7] Copying mod smali into APK work tree ..."
+echo "[4/8] Copying mod smali into APK work tree ..."
 mkdir -p "$WORK/smali/com/jzs/brawl"
 cp -R "$SMALI_OUT/com/jzs/brawl/." "$WORK/smali/com/jzs/brawl/"
 
-echo "[5/7] Injecting invoke-static in GameApp.onCreate ..."
+echo "[5/8] Injecting invoke-static in GameApp.onCreate ..."
 python3 "$ROOT/build/inject_overlay.py" "$WORK/smali/com/supercell/titan/GameApp.smali"
 
-echo "[6/7] Building libjz.so for both ABIs and dropping into lib/ ..."
+echo "[6/8] Building libjz.so for both ABIs and dropping into lib/ ..."
 pushd "$ROOT/mod/native" >/dev/null
 ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=jni/Android.mk NDK_APPLICATION_MK=jni/Application.mk
 popd >/dev/null
@@ -63,7 +64,11 @@ for abi in armeabi-v7a arm64-v8a; do
     fi
 done
 
-echo "[7/7] Rebuilding, aligning and signing APK ..."
+echo "[7/8] Replacing app icon with mod/icon/jzs_icon.png ..."
+python3 "$ROOT/build/replace_icon.py" "$INPUT_APK" "$WORK" "$ROOT/mod/icon/jzs_icon.png" \
+    || echo "    [icon] warning: icon step failed - keeping original icon" >&2
+
+echo "[8/8] Rebuilding, aligning and signing APK ..."
 apktool b "$WORK" -o "$OUT/jzs-brawl-unsigned.apk"
 zipalign -p -f 4 "$OUT/jzs-brawl-unsigned.apk" "$OUT/jzs-brawl-aligned.apk"
 

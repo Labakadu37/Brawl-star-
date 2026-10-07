@@ -9,6 +9,12 @@ sudo apt install openjdk-17-jdk
 java -version   # expect 17.x
 ```
 
+Also install Pillow, used to put the JZS logo on the app icon:
+
+```bash
+pip install pillow
+```
+
 ## 2. Android SDK build-tools
 
 Either install Android Studio and use its SDK Manager, or grab the
