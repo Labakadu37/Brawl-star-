@@ -19,6 +19,7 @@ public final class JZSInit {
             android.util.Log.i("JZS", "JZS Brawl init - " + JZSOverlay.MOD_VERSION);
         }
         JZSOverlay.attach(activity);
+        JZSModMenu.attach(activity);
     }
 
     public static native String nativeVersion();
