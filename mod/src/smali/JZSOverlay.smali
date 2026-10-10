@@ -9,7 +9,7 @@
 
 .field public static final MOD_NAME:Ljava/lang/String; = "JZS Brawl"
 .field public static final MOD_VERSION:Ljava/lang/String; = "JZS V1 (lastest)"
-.field private static sBadge:Landroid/widget/TextView;
+.field private static sBadge:Landroid/widget/ImageView;
 
 # Method bodies intentionally omitted; the build regenerates the full
 # class from Java. This stub exists only so reviewers can see the class

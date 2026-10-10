@@ -2,22 +2,23 @@ package com.jzs.brawl;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Color;
-import android.graphics.Typeface;
-import android.util.TypedValue;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
-import android.widget.TextView;
+import android.widget.ImageView;
+
+import java.io.InputStream;
 
 public final class JZSOverlay {
 
     public static final String MOD_NAME = "JZS Brawl";
     public static final String MOD_VERSION = "JZS V1 (lastest)";
 
-    private static TextView sBadge;
+    private static ImageView sBadge;
 
     private JZSOverlay() {}
 
@@ -38,39 +39,43 @@ public final class JZSOverlay {
     private static void installBadge(Activity activity) {
         Context ctx = activity;
 
-        TextView tv = new TextView(ctx);
-        tv.setText(MOD_VERSION);
-        tv.setTextColor(Color.WHITE);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
-        tv.setTypeface(Typeface.DEFAULT_BOLD);
-        tv.setShadowLayer(4f, 0f, 0f, Color.BLACK);
-        tv.setPadding(dp(ctx, 10), dp(ctx, 6), dp(ctx, 10), dp(ctx, 6));
-        tv.setBackgroundColor(Color.argb(160, 0, 0, 0));
-
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.gravity = Gravity.TOP | Gravity.START;
-        lp.topMargin = dp(ctx, 24);
-        lp.leftMargin = dp(ctx, 12);
-        tv.setLayoutParams(lp);
-
-        View decor = activity.getWindow().getDecorView();
-        if (decor instanceof ViewGroup) {
-            FrameLayout host = new FrameLayout(ctx);
-            host.setLayoutParams(new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
-            host.addView(tv);
-
-            activity.getWindow().addContentView(host, new WindowManager.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
-            tv.bringToFront();
+        Bitmap banner = null;
+        try {
+            InputStream is = ctx.getAssets().open("jzs_banner.png");
+            banner = BitmapFactory.decodeStream(is);
+            is.close();
+        } catch (Exception e) {
+            android.util.Log.e("JZS", "failed to load jzs_banner.png from assets", e);
+            return;
         }
 
-        sBadge = tv;
-        android.util.Log.i("JZS", MOD_NAME + " overlay attached: " + MOD_VERSION);
+        ImageView iv = new ImageView(ctx);
+        iv.setImageBitmap(banner);
+        iv.setAdjustViewBounds(true);
+        iv.setScaleType(ImageView.ScaleType.FIT_START);
+
+        int bannerWidth = dp(ctx, 180);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                bannerWidth,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.gravity = Gravity.TOP | Gravity.START;
+        lp.topMargin = dp(ctx, 16);
+        lp.leftMargin = dp(ctx, 10);
+        iv.setLayoutParams(lp);
+
+        FrameLayout host = new FrameLayout(ctx);
+        host.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        host.addView(iv);
+
+        activity.getWindow().addContentView(host, new WindowManager.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        iv.bringToFront();
+
+        sBadge = iv;
+        android.util.Log.i("JZS", MOD_NAME + " banner overlay attached");
     }
 
     private static int dp(Context ctx, int value) {
