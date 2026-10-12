@@ -96,7 +96,7 @@ public final class JZSModMenu {
     static final float CARD_W = 463f, CARD_H = 143f, CARD_COL = 480.5f, CARD_ROW = 150f;
     static final float TAB_Y = 158f, TAB_H = 80f, TAB_X0 = 217f, TAB_GAP = 17f;
     static final float SIDE_X = 23f, SIDE_W = 135f, SIDE_H = 136f;
-    static final float[] SIDE_Y = {144f, 286f, 428f};
+    static final float[] SIDE_Y = {144f, 286f, 428f, 570f};
     static final float SEARCH_Y = 878f, SEARCH_H = 93f;
     static final float BTN_Y = 22f, BTN_H = 88f;
 
@@ -115,13 +115,14 @@ public final class JZSModMenu {
     private static Box sFab;
     private static Box sEditBtn;
     private static View sEditOverlay;
-    private static final Box[] sSide = new Box[3];
+    private static final Box[] sSide = new Box[4];
     private static Box sSearchTile;
     private static Box sConfigBtn;
     private static final ArrayList<Box> sTabs = new ArrayList<Box>();
     private static final ArrayList<Float> sSecTops = new ArrayList<Float>();
     private static final ArrayList<Box> sCards = new ArrayList<Box>();
-    private static int sGroup = 0;
+    /** -1 = Profile page, 0..2 = GROUPS */
+    private static int sGroup = -1;
     private static int sTabSel = 0;
     private static boolean sOpen;
     private static boolean sSearch;
@@ -408,6 +409,33 @@ public final class JZSModMenu {
                     "JZS Brawl est\u00e1 funcionando, comece a jogar agora!",
                     "JZS Brawl ist einsatzbereit, spiel jetzt los!",
                     "JZS Brawl \u00e8 operativo, inizia a giocare ora!"},
+            {"Profile", "Profil", "Perfil", "Perfil", "Profil", "Profilo"},
+            {"Account", "Compte", "Cuenta", "Conta", "Konto", "Account"},
+            {"Name", "Pseudo", "Nombre", "Nome", "Name", "Nome"},
+            {"Tag", "Tag", "Tag", "Tag", "Tag", "Tag"},
+            {"Trophies", "Troph\u00e9es", "Trofeos", "Trof\u00e9us", "Troph\u00e4en", "Trofei"},
+            {"Highest", "Record", "R\u00e9cord", "Recorde", "Rekord", "Record"},
+            {"Level", "Niveau", "Nivel", "N\u00edvel", "Level", "Livello"},
+            {"3v3 Wins", "Victoires 3c3", "Victorias 3c3", "Vit\u00f3rias 3x3", "3v3-Siege", "Vittorie 3v3"},
+            {"Solo Wins", "Victoires solo", "Victorias solo", "Vit\u00f3rias solo", "Solo-Siege", "Vittorie solo"},
+            {"Duo Wins", "Victoires duo", "Victorias d\u00fao", "Vit\u00f3rias dupla", "Duo-Siege", "Vittorie duo"},
+            {"Club", "Club", "Club", "Clube", "Club", "Club"},
+            {"No club", "Aucun club", "Sin club", "Sem clube", "Kein Club", "Nessun club"},
+            {"Player tag", "Tag joueur", "Tag de jugador", "Tag do jogador", "Spieler-Tag", "Tag giocatore"},
+            {"API key", "Cl\u00e9 API", "Clave API", "Chave API", "API-Schl\u00fcssel", "Chiave API"},
+            {"Refresh", "Actualiser", "Actualizar", "Atualizar", "Aktualisieren", "Aggiorna"},
+            {"Set", "Configur\u00e9e", "Configurada", "Configurada", "Gesetzt", "Impostata"},
+            {"Not set", "Non configur\u00e9e", "No configurada", "N\u00e3o configurada", "Nicht gesetzt", "Non impostata"},
+            {"Not found", "Introuvable", "No encontrado", "N\u00e3o encontrado", "Nicht gefunden", "Non trovato"},
+            {"Tap to enter", "Touche pour saisir", "Toca para escribir", "Toque para digitar", "Tippen zum Eingeben", "Tocca per inserire"},
+            {"Loading...", "Chargement...", "Cargando...", "Carregando...", "Laden...", "Caricamento..."},
+            {"Up to date", "\u00c0 jour", "Actualizado", "Atualizado", "Aktuell", "Aggiornato"},
+            {"Add an API key for trophies", "Ajoute une cl\u00e9 API pour les troph\u00e9es", "A\u00f1ade una clave API para los trofeos",
+                    "Adicione uma chave API para os trof\u00e9us", "API-Schl\u00fcssel f\u00fcr Troph\u00e4en hinzuf\u00fcgen",
+                    "Aggiungi una chiave API per i trofei"},
+            {"Invalid API key", "Cl\u00e9 API invalide", "Clave API no v\u00e1lida", "Chave API inv\u00e1lida", "Ung\u00fcltiger API-Schl\u00fcssel", "Chiave API non valida"},
+            {"Player not found", "Joueur introuvable", "Jugador no encontrado", "Jogador n\u00e3o encontrado", "Spieler nicht gefunden", "Giocatore non trovato"},
+            {"No connection", "Pas de connexion", "Sin conexi\u00f3n", "Sem conex\u00e3o", "Keine Verbindung", "Nessuna connessione"},
             {"JZS is free, never paid", "JZS est gratuit, jamais payant", "JZS es gratis, nunca de pago",
                     "JZS \u00e9 gr\u00e1tis, nunca pago", "JZS ist kostenlos, niemals kostenpflichtig",
                     "JZS \u00e8 gratis, mai a pagamento"},
@@ -550,6 +578,22 @@ public final class JZSModMenu {
     // ------------------------------------------------------------------ sidebar
 
     private static void buildSidebar(final Activity act) {
+        Box prof = new Box(act, Gfx.GREY, new Painter() {
+            public void paint(Canvas c, Box b) {
+                Gfx.person(c, 67.5f, 46);
+                Gfx.textFitCentered(c, T("Profile"), 67.5f, 95, 22, 118, 0xFFFFFFFF, Gfx.LILITA, true);
+            }
+        });
+        prof.click = new Click() {
+            public void click(Box b, float x, float y) {
+                if (sSearch) setSearch(act, false);
+                sGroup = -1;
+                sTabSel = 0;
+                refreshGroup(false);
+            }
+        };
+        sSide[0] = prof;
+        place(sPanel, prof, SIDE_X, SIDE_Y[0], SIDE_W, SIDE_H);
         for (int i = 0; i < 3; i++) {
             final int gi = i;
             Box tile = new Box(act, Gfx.GREY, new Painter() {
@@ -572,8 +616,8 @@ public final class JZSModMenu {
                     refreshGroup(false);
                 }
             };
-            sSide[i] = tile;
-            place(sPanel, tile, SIDE_X, SIDE_Y[i], SIDE_W, SIDE_H);
+            sSide[i + 1] = tile;
+            place(sPanel, tile, SIDE_X, SIDE_Y[i + 1], SIDE_W, SIDE_H);
         }
         sSearchTile = new Box(act, Gfx.GREY, new Painter() {
             public void paint(Canvas c, Box b) {
@@ -592,8 +636,8 @@ public final class JZSModMenu {
 
     private static void refreshGroup(boolean keepScroll) {
         Activity act = sAct;
-        for (int i = 0; i < 3; i++) {
-            sSide[i].selected = !sSearch && i == sGroup;
+        for (int i = 0; i < sSide.length; i++) {
+            sSide[i].selected = !sSearch && i == sGroup + 1;
             sSide[i].invalidate();
         }
         sSearchTile.selected = sSearch;
@@ -619,6 +663,16 @@ public final class JZSModMenu {
         sTabs.clear();
         if (sSearch) {
             buildSearchField(act);
+        } else if (sGroup < 0) {
+            final String pt = T("Profile");
+            Box tab = new Box(act, Gfx.TAB, new Painter() {
+                public void paint(Canvas c, Box b) {
+                    Gfx.text(c, pt, 28, 42, 24, 0xFFFFFFFF, Gfx.LILITA, 0, true);
+                }
+            });
+            tab.selected = true;
+            sTabs.add(tab);
+            place(sTabsRow, tab, TAB_X0, 6, Gfx.textW(pt, 24, Gfx.LILITA, 0) + 56, TAB_H);
         } else {
             final ArrayList<String> subs = subsFor(GROUPS[sGroup]);
             float x = TAB_X0;
@@ -738,6 +792,8 @@ public final class JZSModMenu {
                         || t[3].toLowerCase(Locale.US).contains(q)) hits.add(t);
             }
             y = addSection(act, hits.isEmpty() ? "No results" : "Results", hits, y);
+        } else if (sGroup < 0) {
+            y = buildProfile(act, y);
         } else {
             String group = GROUPS[sGroup];
             for (String sub : subsFor(group)) {
@@ -794,6 +850,351 @@ public final class JZSModMenu {
             place(sContent, card, Math.round(cx), cy, CARD_W, CARD_H);
         }
         return y + h;
+    }
+
+    // ------------------------------------------------------------------ profile
+
+    private static final String TAG_CHARS = "0289PYLQGRJCUV";
+    private static String sTag;          // without '#'
+    private static int sIdHigh = -1;
+    private static long sIdLow = -1;
+    private static boolean sTagAuto;
+    private static org.json.JSONObject sStats;
+    private static String sStatsMsg;
+    private static boolean sLoading;
+
+    static String idToTag(long high, long low) {
+        long id = (low << 8) + high;
+        StringBuilder sb = new StringBuilder();
+        while (id > 0) {
+            sb.insert(0, TAG_CHARS.charAt((int) (id % 14)));
+            id /= 14;
+        }
+        return sb.toString();
+    }
+
+    /** returns {high, low} or null */
+    static long[] tagToId(String tag) {
+        long id = 0;
+        for (char ch : tag.toUpperCase(Locale.US).replace("#", "").replace('O', '0').toCharArray()) {
+            int i = TAG_CHARS.indexOf(ch);
+            if (i < 0) return null;
+            id = id * 14 + i;
+        }
+        return new long[]{id % 256, id >> 8};
+    }
+
+    private static long asLong(Object o) {
+        if (o instanceof Number) return ((Number) o).longValue();
+        if (o instanceof String) {
+            try {
+                return Long.parseLong(((String) o).trim());
+            } catch (Exception ignored) {
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Looks for the account id the game keeps in its own SharedPreferences (pairs of keys
+     * named like "...High..." / "...Low..."). Only numeric id values are read; anything
+     * that looks like a password or token is skipped.
+     */
+    private static void detectAccount(Activity act) {
+        try {
+            java.io.File dir = new java.io.File(act.getApplicationInfo().dataDir, "shared_prefs");
+            String[] files = dir.list();
+            if (files == null) return;
+            for (String f : files) {
+                if (!f.endsWith(".xml") || f.startsWith("jzs_")) continue;
+                java.util.Map<String, ?> all;
+                try {
+                    all = act.getSharedPreferences(f.substring(0, f.length() - 4), Context.MODE_PRIVATE).getAll();
+                } catch (Throwable t) {
+                    continue;
+                }
+                for (java.util.Map.Entry<String, ?> e : all.entrySet()) {
+                    String k = e.getKey();
+                    String kl = k.toLowerCase(Locale.US);
+                    if (kl.contains("pass") || kl.contains("token") || kl.contains("secret")) continue;
+                    if (kl.contains("tag") && e.getValue() instanceof String) {
+                        String v = ((String) e.getValue()).trim().toUpperCase(Locale.US).replace("#", "");
+                        if (v.length() >= 3 && v.length() <= 12 && tagToId(v) != null) {
+                            setTag(v, true);
+                            return;
+                        }
+                    }
+                    int hi = kl.indexOf("high");
+                    if (hi < 0) continue;
+                    String lowKey = k.substring(0, hi) + (Character.isUpperCase(k.charAt(hi)) ? "Low" : "low")
+                            + k.substring(hi + 4);
+                    if (!all.containsKey(lowKey)) {
+                        lowKey = k.substring(0, hi) + "LOW" + k.substring(hi + 4);
+                        if (!all.containsKey(lowKey)) continue;
+                    }
+                    long h = asLong(e.getValue()), l = asLong(all.get(lowKey));
+                    if (h >= 0 && h < 1000 && l > 0) {
+                        sIdHigh = (int) h;
+                        sIdLow = l;
+                        setTag(idToTag(h, l), true);
+                        return;
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            android.util.Log.w("JZS", "profile detect failed", t);
+        }
+    }
+
+    private static void setTag(String tag, boolean auto) {
+        sTag = tag.toUpperCase(Locale.US).replace("#", "").replace('O', '0').trim();
+        sTagAuto = auto;
+        if (!auto || sIdHigh < 0) {
+            long[] id = tagToId(sTag);
+            if (id != null) {
+                sIdHigh = (int) id[0];
+                sIdLow = id[1];
+            }
+        }
+    }
+
+    private static void loadProfile(Activity act) {
+        String manual = sPrefs.getString("tag", null);
+        if (manual != null && manual.length() > 0) setTag(manual, false);
+        else if (sTag == null) detectAccount(act);
+        if (sStats == null) {
+            try {
+                String cached = sPrefs.getString("stats_" + sTag, null);
+                if (cached != null) sStats = new org.json.JSONObject(cached);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private static void fetchStats() {
+        final String key = sPrefs.getString("apikey", "");
+        final String tag = sTag;
+        if (tag == null || key.length() == 0 || sLoading) return;
+        sLoading = true;
+        sStatsMsg = null;
+        new Thread(new Runnable() {
+            public void run() {
+                org.json.JSONObject res = null;
+                String msg = null;
+                java.net.HttpURLConnection con = null;
+                try {
+                    java.net.URL u = new java.net.URL("https://bsproxy.royaleapi.dev/v1/players/%23" + tag);
+                    con = (java.net.HttpURLConnection) u.openConnection();
+                    con.setConnectTimeout(8000);
+                    con.setReadTimeout(8000);
+                    con.setRequestProperty("Authorization", "Bearer " + key);
+                    con.setRequestProperty("Accept", "application/json");
+                    int code = con.getResponseCode();
+                    java.io.InputStream in = code < 400 ? con.getInputStream() : con.getErrorStream();
+                    StringBuilder sb = new StringBuilder();
+                    if (in != null) {
+                        java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(in, "UTF-8"));
+                        String line;
+                        while ((line = r.readLine()) != null) sb.append(line);
+                        r.close();
+                    }
+                    if (code == 200) res = new org.json.JSONObject(sb.toString());
+                    else if (code == 403) msg = "Invalid API key";
+                    else if (code == 404) msg = "Player not found";
+                    else msg = "Error " + code;
+                } catch (Throwable t) {
+                    msg = "No connection";
+                } finally {
+                    if (con != null) con.disconnect();
+                }
+                final org.json.JSONObject fr = res;
+                final String fm = msg;
+                sUi.post(new Runnable() {
+                    public void run() {
+                        sLoading = false;
+                        if (fr != null) {
+                            sStats = fr;
+                            sPrefs.edit().putString("stats_" + tag, fr.toString()).apply();
+                        }
+                        sStatsMsg = fm;
+                        if (sGroup < 0 && !sSearch && sContent != null) refreshGroup(true);
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private static String stat(String field) {
+        if (sStats == null) return sLoading ? T("Loading...") : "\u2014";
+        Object o = sStats.opt(field);
+        if (o == null) return "\u2014";
+        if (o instanceof Number) return String.format(Locale.getDefault(), "%,d", ((Number) o).longValue());
+        return String.valueOf(o);
+    }
+
+    private static float buildProfile(final Activity act, float y) {
+        loadProfile(act);
+        if (sStats == null && !sLoading) fetchStats();
+        String tagText = sTag == null ? T("Not found") : "#" + sTag;
+        String idText = sIdHigh < 0 ? "\u2014" : sIdHigh + "-" + sIdLow;
+        String club = "\u2014";
+        if (sStats != null) {
+            org.json.JSONObject cl = sStats.optJSONObject("club");
+            club = cl != null && cl.optString("name", "").length() > 0 ? cl.optString("name") : T("No club");
+        }
+        String[][] stats = {
+                {"Name", sStats != null ? sStats.optString("name", "\u2014") : (sLoading ? T("Loading...") : "\u2014")},
+                {"Tag", tagText},
+                {"ID", idText},
+                {"Trophies", stat("trophies")},
+                {"Highest", stat("highestTrophies")},
+                {"Level", stat("expLevel")},
+                {"3v3 Wins", stat("3vs3Victories")},
+                {"Solo Wins", stat("soloVictories")},
+                {"Duo Wins", stat("duoVictories")},
+                {"Club", club},
+        };
+        y = addStatSection(act, "Profile", stats, y, null) + SEC_GAP;
+
+        boolean hasKey = sPrefs.getString("apikey", "").length() > 0;
+        String status = sLoading ? T("Loading...") : sStatsMsg != null ? T(sStatsMsg)
+                : sStats != null ? T("Up to date") : hasKey ? "\u2014" : T("Add an API key for trophies");
+        String[][] acc = {
+                {"Player tag", sTag == null ? T("Tap to enter") : "#" + sTag + (sTagAuto ? "  (auto)" : "")},
+                {"API key", hasKey ? T("Set") : T("Not set")},
+                {"Refresh", status},
+        };
+        Click[] actions = {
+                new Click() {
+                    public void click(Box b, float x, float yy) {
+                        showInput(act, T("Player tag"), sTag == null ? "" : "#" + sTag, "#2PP", new TextSink() {
+                            public void set(String v) {
+                                v = v.trim();
+                                if (v.length() == 0) {
+                                    sPrefs.edit().remove("tag").apply();
+                                    sTag = null;
+                                    sIdHigh = -1;
+                                    detectAccount(act);
+                                } else {
+                                    sPrefs.edit().putString("tag", v).apply();
+                                    sIdHigh = -1;
+                                    setTag(v, false);
+                                }
+                                sStats = null;
+                                fetchStats();
+                                refreshGroup(true);
+                            }
+                        });
+                    }
+                },
+                new Click() {
+                    public void click(Box b, float x, float yy) {
+                        showInput(act, T("API key"), "", "developer.brawlstars.com", new TextSink() {
+                            public void set(String v) {
+                                sPrefs.edit().putString("apikey", v.trim()).apply();
+                                sStats = null;
+                                fetchStats();
+                                refreshGroup(true);
+                            }
+                        });
+                    }
+                },
+                new Click() {
+                    public void click(Box b, float x, float yy) {
+                        if (sTag == null) detectAccount(act);
+                        sStats = null;
+                        fetchStats();
+                        refreshGroup(true);
+                    }
+                },
+        };
+        return addStatSection(act, "Account", acc, y, actions);
+    }
+
+    private static float addStatSection(Activity act, String label, final String[][] items, float y,
+                                        final Click[] actions) {
+        int rows = Math.max(1, (items.length + 2) / 3);
+        final float h = 81 + rows * CARD_ROW;
+        final String up = T(label).toUpperCase(Locale.getDefault());
+        View sec = new View(act) {
+            @Override
+            protected void onDraw(Canvas c) {
+                c.save();
+                c.scale(sS, sS);
+                Gfx.section(c, SEC_W, h, up);
+                c.restore();
+            }
+        };
+        place(sContent, sec, SEC_X, y, SEC_W, h);
+        for (int i = 0; i < items.length; i++) {
+            final String[] it = items[i];
+            final boolean action = actions != null && actions[i] != null;
+            Box card = new Box(act, Gfx.CARD, new Painter() {
+                public void paint(Canvas c, Box b) {
+                    Gfx.statContent(c, b.w(), T(it[0]), it[1], action);
+                }
+            });
+            if (action) card.click = actions[i];
+            else card.pressable = false;
+            float cx = SEC_X + 21 + (i % 3) * CARD_COL;
+            float cy = y + 78 + (i / 3) * CARD_ROW;
+            place(sContent, card, Math.round(cx), cy, CARD_W, CARD_H);
+        }
+        return y + h;
+    }
+
+    interface TextSink {
+        void set(String v);
+    }
+
+    private static void showInput(final Activity act, String title, String initial, String hint, final TextSink sink) {
+        FrameLayout layer = openLayer(act, true);
+        float mw = 900, mh = 290;
+        float mx = (PANEL_W - mw) / 2f, my = 120;
+        place(layer, modalFrame(act, title, mw, mh), mx, my, mw, mh);
+        addModalClose(act, layer, mx, my, mw);
+        Box field = new Box(act, Gfx.TAB_FLAT, null);
+        field.selected = true;
+        field.pressable = false;
+        place(layer, field, mx + 28, my + 128, mw - 56 - 190, TAB_H);
+        final EditText et = new EditText(act);
+        et.setBackgroundColor(0);
+        et.setPadding(0, 0, 0, 0);
+        et.setSingleLine(true);
+        et.setTextColor(0xFFFFFFFF);
+        et.setHintTextColor(0xFFA9A8AE);
+        et.setHint(hint);
+        et.setTypeface(Gfx.LILITA);
+        et.setTextSize(TypedValue.COMPLEX_UNIT_PX, 26 * sS);
+        et.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
+        et.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+        et.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        et.setText(initial);
+        et.setSelection(initial.length());
+        place(layer, et, mx + 52, my + 140, mw - 104 - 190, TAB_H - 24);
+        Box ok = new Box(act, Gfx.EDIT, new Painter() {
+            public void paint(Canvas c, Box b) {
+                Gfx.textFitCentered(c, T("Save"), b.w() / 2f, 47, 24, b.w() - 24, 0xFFFFFFFF, Gfx.LILITA, true);
+            }
+        });
+        ok.click = new Click() {
+            public void click(Box b, float x, float y) {
+                InputMethodManager imm = (InputMethodManager) act.getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) imm.hideSoftInputFromWindow(et.getWindowToken(), 0);
+                String v = et.getText().toString();
+                dismissModal();
+                sink.set(v);
+            }
+        };
+        place(layer, ok, mx + mw - 28 - 170, my + 124, 170, BTN_H);
+        et.requestFocus();
+        et.postDelayed(new Runnable() {
+            public void run() {
+                InputMethodManager imm = (InputMethodManager) act.getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) imm.showSoftInput(et, 0);
+            }
+        }, 120);
     }
 
     private static void refreshCounts() {
@@ -1214,13 +1615,14 @@ public final class JZSModMenu {
     }
 
     private static void showLibrary(final Activity act, Box anchor) {
-        String[] items = new String[GROUPS.length];
-        for (int i = 0; i < GROUPS.length; i++) items[i] = GROUPS[i];
-        dropdown(act, 280, BTN_Y + BTN_H + 8, 300, items, sSearch ? -1 : sGroup, new ValueSink() {
+        String[] items = new String[GROUPS.length + 1];
+        items[0] = "Profile";
+        for (int i = 0; i < GROUPS.length; i++) items[i + 1] = GROUPS[i];
+        dropdown(act, 280, BTN_Y + BTN_H + 8, 300, items, sSearch ? -1 : sGroup + 1, new ValueSink() {
             public void set(int v) {
                 if (sSearch) sSearch = false;
                 sQuery = "";
-                sGroup = v;
+                sGroup = v - 1;
                 sTabSel = 0;
                 refreshGroup(false);
             }
@@ -1944,6 +2346,36 @@ public final class JZSModMenu {
             stroke(0xFFFFFFFF, 3.2f);
             c.drawCircle(cx - 2.5f, cy - 2.5f, 10f, P);
             c.drawLine(cx + 5f, cy + 5f, cx + 12.5f, cy + 12.5f, P);
+        }
+
+        static void person(Canvas c, float cx, float cy) {
+            for (int pass = 0; pass < 2; pass++) {
+                float g = pass == 0 ? 2.2f : 0f;
+                fill(pass == 0 ? 0xFF0A090E : 0xFFFFFFFF);
+                c.drawCircle(cx, cy - 6, 6.5f + g, P);
+                PATH.reset();
+                PATH.moveTo(cx - 12 - g, cy + 13 + g);
+                PATH.quadTo(cx - 12 - g, cy + 1 - g, cx, cy + 1 - g);
+                PATH.quadTo(cx + 12 + g, cy + 1 - g, cx + 12 + g, cy + 13 + g);
+                PATH.close();
+                c.drawPath(PATH, P);
+            }
+        }
+
+        /** Profile stat card content: small grey label + big value. */
+        static void statContent(Canvas c, float w, String label, String value, boolean action) {
+            textFit(c, label, 28, 46, 22, w - 70, 0xFFA9A8AE, LILITA, false);
+            textFit(c, value, 28, 102, 34, w - 70, 0xFFFFFFFF, LILITA, true);
+            if (action) chevronRight(c, w - 36, 66, 0xFFFFFFFF);
+        }
+
+        static void chevronRight(Canvas c, float cx, float cy, int color) {
+            stroke(color, 3.4f);
+            PATH.reset();
+            PATH.moveTo(cx - 4, cy - 9);
+            PATH.lineTo(cx + 5, cy);
+            PATH.lineTo(cx - 4, cy + 9);
+            c.drawPath(PATH, P);
         }
 
         static void sliders(Canvas c, float cx, float cy, int bg) {
