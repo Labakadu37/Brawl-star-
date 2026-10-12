@@ -18,6 +18,7 @@ public final class JZSOverlay {
     public static final String MOD_VERSION = "JZS V1 (lastest)";
 
     private static TextView sBadge;
+    private static String sPendingText;
 
     private JZSOverlay() {}
 
@@ -39,7 +40,7 @@ public final class JZSOverlay {
         Context ctx = activity;
 
         TextView tv = new TextView(ctx);
-        tv.setText(MOD_VERSION);
+        tv.setText(sPendingText != null ? sPendingText : MOD_VERSION);
         tv.setTextColor(Color.WHITE);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         tv.setTypeface(Typeface.DEFAULT_BOLD);
@@ -71,6 +72,12 @@ public final class JZSOverlay {
 
         sBadge = tv;
         android.util.Log.i("JZS", MOD_NAME + " overlay attached: " + MOD_VERSION);
+    }
+
+    /** Called on the UI thread by JZSRemote; empty text restores MOD_VERSION. */
+    static void setText(String text) {
+        sPendingText = (text == null || text.isEmpty()) ? MOD_VERSION : text;
+        if (sBadge != null) sBadge.setText(sPendingText);
     }
 
     private static int dp(Context ctx, int value) {

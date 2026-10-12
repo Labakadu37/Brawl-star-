@@ -1,0 +1,10 @@
+{
+  "min_build": 1,
+  "update_message": "Une nouvelle version de JZS Brawl est disponible ! Rejoins le Discord pour la telecharger.",
+  "update_link": "https://discord.gg/jzbrawl",
+  "maintenance": false,
+  "maintenance_message": "Le mod est en maintenance, reviens plus tard.",
+  "announcement": "",
+  "announcement_id": 0,
+  "badge_text": ""
+}

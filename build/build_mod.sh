@@ -38,7 +38,12 @@ apktool d --no-res "$INPUT_APK" -o "$WORK" -f
 
 echo "[2/7] Compiling Java overlay classes ..."
 find "$ROOT/mod/src/java" -name "*.java" > "$OUT/srcs.txt"
-javac -source 8 -target 8 -d "$CLASSES_OUT" @"$OUT/srcs.txt"
+ANDROID_JAR="${ANDROID_JAR:-${ANDROID_SDK:-}/platforms/android-34/android.jar}"
+if [[ ! -f "$ANDROID_JAR" ]]; then
+    echo "android.jar not found: set ANDROID_JAR (or ANDROID_SDK with platforms/android-34)" >&2
+    exit 1
+fi
+javac -source 8 -target 8 -cp "$ANDROID_JAR" -d "$CLASSES_OUT" @"$OUT/srcs.txt"
 
 echo "[3/7] Converting classes to DEX and baksmali'ing ..."
 d8 --output "$OUT/jzs.dex.zip" $(find "$CLASSES_OUT" -name "*.class")

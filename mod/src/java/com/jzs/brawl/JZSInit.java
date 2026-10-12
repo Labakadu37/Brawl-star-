@@ -16,9 +16,11 @@ public final class JZSInit {
                 android.util.Log.w("JZS", "libjz.so not loaded (non-fatal): " + t.getMessage());
             }
             sLoaded = true;
-            android.util.Log.i("JZS", "JZS Brawl init - " + JZSOverlay.MOD_VERSION);
+            android.util.Log.i("JZS", "JZS Brawl init - " + JZSOverlay.MOD_VERSION
+                    + " build " + JZSRemote.MOD_BUILD);
         }
         JZSOverlay.attach(activity);
+        JZSRemote.check(activity);
     }
 
     public static native String nativeVersion();
