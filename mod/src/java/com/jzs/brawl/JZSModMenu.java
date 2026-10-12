@@ -833,7 +833,9 @@ public final class JZSModMenu {
             card.selected = isOn(f[1]);
             card.click = new Click() {
                 public void click(Box b, float cx, float cy) {
-                    if (cx >= 372) {
+                    if (cx >= 372 && "namechanger".equals(f[1])) {
+                        showNickname(act);
+                    } else if (cx >= 372) {
                         showFeatureSettings(act, f);
                     } else {
                         boolean on = !isOn(f[1]);
@@ -1168,7 +1170,7 @@ public final class JZSModMenu {
         et.setTextSize(TypedValue.COMPLEX_UNIT_PX, 26 * sS);
         et.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
         et.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-                | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+                | (hint.startsWith("#") ? InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS : 0));
         et.setImeOptions(EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         et.setText(initial);
         et.setSelection(initial.length());
@@ -1195,6 +1197,59 @@ public final class JZSModMenu {
                 if (imm != null) imm.showSoftInput(et, 0);
             }
         }, 120);
+    }
+
+    // ------------------------------------------------------------------ nickname "[JZS] name"
+
+    static final String NICK_PREFIX = "[JZS] ";
+
+    /** Same file ht64 / the native Nick Changer reads: files/revenge/name.txt (UTF-8). */
+    private static java.io.File nickFile(Context ctx) {
+        return new java.io.File(ctx.getFilesDir(), "revenge/name.txt");
+    }
+
+    private static String readNick(Context ctx) {
+        try {
+            java.io.File f = nickFile(ctx);
+            if (!f.exists()) return "";
+            java.io.FileInputStream in = new java.io.FileInputStream(f);
+            byte[] b = new byte[(int) Math.min(f.length(), 256)];
+            int n = in.read(b);
+            in.close();
+            return n > 0 ? new String(b, 0, n, "UTF-8").trim() : "";
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
+    private static void writeNick(Context ctx, String name) {
+        try {
+            java.io.File f = nickFile(ctx);
+            if (f.getParentFile() != null) f.getParentFile().mkdirs();
+            java.io.FileOutputStream out = new java.io.FileOutputStream(f, false);
+            out.write(name.getBytes("UTF-8"));
+            out.close();
+        } catch (Throwable t) {
+            android.util.Log.w("JZS", "nick write failed", t);
+        }
+    }
+
+    private static void showNickname(final Activity act) {
+        String cur = readNick(act);
+        if (cur.startsWith(NICK_PREFIX)) cur = cur.substring(NICK_PREFIX.length());
+        if (cur.length() == 0 && sStats != null) cur = sStats.optString("name", "");
+        showInput(act, T("Nick Changer") + "  -  " + NICK_PREFIX + "{" + T("Name") + "}", cur, T("Name"),
+                new TextSink() {
+                    public void set(String v) {
+                        v = v.trim();
+                        if (v.startsWith(NICK_PREFIX.trim())) v = v.substring(NICK_PREFIX.trim().length()).trim();
+                        if (v.length() == 0) return;
+                        writeNick(act, NICK_PREFIX + v);
+                        htSet("namechanger", 1, 0, 1);
+                        refreshGroup(true);
+                        refreshCounts();
+                    }
+                });
     }
 
     private static void refreshCounts() {
