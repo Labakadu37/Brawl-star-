@@ -243,10 +243,9 @@ public final class JZSModMenu {
         buildWatermark(act);
         buildPanel(act, Math.max(w, h), Math.min(w, h));
         buildFab(act);
-        startHideOldButton();
         if (sOpen) {
             sPanel.setVisibility(View.VISIBLE);
-            sFab.setVisibility(View.GONE);
+            sFab.setVisibility(View.VISIBLE);
         } else {
             sPanel.setVisibility(View.GONE);
             sFab.setVisibility(View.VISIBLE);
@@ -1296,27 +1295,35 @@ public final class JZSModMenu {
     // ------------------------------------------------------------------ open / close / fab
 
     private static void buildFab(final Activity act) {
+        // Sits exactly on top of the native lib's "MOD MENU" button (bottom-left) and a bit
+        // larger, so that button is hidden and can't be tapped. Fixed: not draggable.
         sFab = new Box(act, Gfx.GREY, new Painter() {
             public void paint(Canvas c, Box b) {
-                Gfx.logo(c, 15, 12, BRAND_LOGO);
+                Gfx.textFitCentered(c, BRAND_LOGO, b.w() / 2f, 52, 36, b.w() - 30, 0xFFFFFFFF, Gfx.LILITA, true);
+                Gfx.textFitCentered(c, "MENU", b.w() / 2f, 80, 20, b.w() - 30, 0xFFC4C3C8, Gfx.LILITA, false);
             }
         });
-        sFab.draggable = true;
         sFab.click = new Click() {
             public void click(Box b, float x, float y) {
-                openPanel();
+                if (sOpen) closePanel();
+                else openPanel();
             }
         };
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(px(100 + 2 * Box.M), px(110 + 2 * Box.M));
+        // design px on the 1920x1200 reference, sized from the in-game screenshot of that button
+        float bs = sS / sUserScale;
+        float fx = 106, fy = 1066, fw = 176, fh = 116;
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                Math.round((fw + 2 * Box.M) * Math.max(bs, sS)), Math.round((fh + 2 * Box.M) * Math.max(bs, sS)));
         lp.gravity = Gravity.TOP | Gravity.LEFT;
         sRoot.addView(sFab, lp);
-        sFab.setX(sFabX * sS);
-        sFab.setY(sFabY * sS);
+        // keep the box centred on the old button whatever the menu scale is
+        float cx = (fx + fw / 2f) * bs, cy = (fy + fh / 2f) * bs;
+        sFab.setX(cx - lp.width / 2f);
+        sFab.setY(cy - lp.height / 2f);
     }
 
     private static void openPanel() {
         sOpen = true;
-        sFab.setVisibility(View.GONE);
         sPanel.setVisibility(View.VISIBLE);
         sPanel.setScaleX(0.92f);
         sPanel.setScaleY(0.92f);
@@ -1333,7 +1340,6 @@ public final class JZSModMenu {
         sPanel.animate().scaleX(0.92f).scaleY(0.92f).alpha(0f).setDuration(130).withEndAction(new Runnable() {
             public void run() {
                 sPanel.setVisibility(View.GONE);
-                sFab.setVisibility(View.VISIBLE);
             }
         }).start();
     }
