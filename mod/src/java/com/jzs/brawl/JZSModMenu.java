@@ -128,6 +128,8 @@ public final class JZSModMenu {
     private static String sQuery = "";
     private static boolean sEdit;
     private static int sConfig = 0;
+    private static int sLang = 0;
+    private static View sWatermark;
     private static float sPanelX = Float.NaN, sPanelY = Float.NaN;
     private static float sFabX = 40f, sFabY = 230f;
     private static SharedPreferences sPrefs;
@@ -217,6 +219,7 @@ public final class JZSModMenu {
         sUserScale = sPrefs.getInt("scale", 100) / 100f;
         sOpacity = sPrefs.getInt("opacity", 100) / 100f;
         sConfig = sPrefs.getInt("config", 0);
+        sLang = clamp(sPrefs.getInt("lang", 0), 0, LANG_NAMES.length - 1);
         sPanelX = sPrefs.getFloat("px", Float.NaN);
         sPanelY = sPrefs.getFloat("py", Float.NaN);
         sFabX = sPrefs.getFloat("fx", 40f);
@@ -236,8 +239,10 @@ public final class JZSModMenu {
         int h = act.getResources().getDisplayMetrics().heightPixels;
         sS = Math.min(Math.max(w, h) / REF_W, Math.min(w, h) / REF_H) * sUserScale;
 
+        buildWatermark(act);
         buildPanel(act, Math.max(w, h), Math.min(w, h));
         buildFab(act);
+        startHideOldButton();
         if (sOpen) {
             sPanel.setVisibility(View.VISIBLE);
             sFab.setVisibility(View.GONE);
@@ -274,6 +279,143 @@ public final class JZSModMenu {
         sModal = null;
         sEdit = false;
         build(sAct);
+    }
+
+    // ------------------------------------------------------------------ watermark (top-left)
+
+    private static void buildWatermark(Activity act) {
+        final float base = sS / sUserScale;
+        sWatermark = new View(act) {
+            @Override
+            protected void onDraw(Canvas c) {
+                c.save();
+                c.scale(base, base);
+                Gfx.outlinedText(c, T("JZS Brawl is operational, start playing now!"), 24, 46, 30, 0xFFFFFFFF);
+                Gfx.outlinedText(c, T("JZS is free, never paid"), 24, 80, 23, 0xFFFFD84A);
+                c.restore();
+            }
+        };
+        sWatermark.setClickable(false);
+        sWatermark.setFocusable(false);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Math.round(1100 * base), Math.round(100 * base));
+        lp.gravity = Gravity.TOP | Gravity.LEFT;
+        sRoot.addView(sWatermark, lp);
+    }
+
+    // ------------------------------------------------------------------ hide the old "MOD MENU" button
+
+    private static final Runnable HIDE_OLD = new Runnable() {
+        int runs;
+
+        public void run() {
+            try {
+                if (sAct != null) hideOldIn(sAct.getWindow().getDecorView());
+                // views added straight to the WindowManager live outside the activity tree
+                Class<?> g = Class.forName("android.view.WindowManagerGlobal");
+                Object inst = g.getMethod("getInstance").invoke(null);
+                java.lang.reflect.Field f = g.getDeclaredField("mViews");
+                f.setAccessible(true);
+                Object views = f.get(inst);
+                if (views instanceof java.util.List) {
+                    for (Object v : new ArrayList<Object>((java.util.List<?>) views)) {
+                        if (v instanceof View) hideOldIn((View) v);
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            runs++;
+            sUi.postDelayed(this, runs < 30 ? 1000 : 5000);
+        }
+    };
+
+    private static void startHideOldButton() {
+        sUi.removeCallbacks(HIDE_OLD);
+        sUi.post(HIDE_OLD);
+    }
+
+    private static void hideOldIn(View v) {
+        if (v == null || v == sRoot) return;
+        if (v instanceof android.widget.TextView) {
+            CharSequence t = ((android.widget.TextView) v).getText();
+            if (t != null && "MOD MENU".equalsIgnoreCase(t.toString().trim())) {
+                if (v.getVisibility() != View.GONE) v.setVisibility(View.GONE);
+                return;
+            }
+        }
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) hideOldIn(g.getChildAt(i));
+        }
+    }
+
+    // ------------------------------------------------------------------ translations
+
+    static final String[] LANG_NAMES = {"English", "Fran\u00e7ais", "Espa\u00f1ol", "Portugu\u00eas", "Deutsch", "Italiano"};
+
+    // English key, then FR, ES, PT, DE, IT
+    private static final String[][] I18N = {
+            {"Library", "Biblioth\u00e8que", "Biblioteca", "Biblioteca", "Bibliothek", "Libreria"},
+            {"Friends", "Amis", "Amigos", "Amigos", "Freunde", "Amici"},
+            {"Settings", "Param\u00e8tres", "Ajustes", "Configura\u00e7\u00f5es", "Einstellungen", "Impostazioni"},
+            {"Edit GUI", "Modifier", "Editar", "Editar", "Bearbeiten", "Modifica"},
+            {"Battle", "Combat", "Batalla", "Batalha", "Kampf", "Battaglia"},
+            {"Visuals", "Visuels", "Visual", "Visual", "Optik", "Visivi"},
+            {"Misc", "Divers", "Varios", "Outros", "Sonstiges", "Varie"},
+            {"Combat", "Attaque", "Combate", "Combate", "Angriff", "Combattimento"},
+            {"Utility", "Utilitaire", "Utilidad", "Utilidade", "Werkzeuge", "Utilit\u00e0"},
+            {"Dodge BL", "Esquive BL", "Esquiva BL", "Esquiva BL", "Ausweichen BL", "Schivata BL"},
+            {"General", "G\u00e9n\u00e9ral", "General", "Geral", "Allgemein", "Generale"},
+            {"Results", "R\u00e9sultats", "Resultados", "Resultados", "Ergebnisse", "Risultati"},
+            {"No results", "Aucun r\u00e9sultat", "Sin resultados", "Sem resultados", "Keine Ergebnisse", "Nessun risultato"},
+            {"Search features...", "Rechercher...", "Buscar...", "Pesquisar...", "Suchen...", "Cerca..."},
+            {"Wall Check", "V\u00e9rif. murs", "Comprobar muros", "Checar paredes", "Wandpr\u00fcfung", "Controllo muri"},
+            {"Gadget Auto", "Gadget auto", "Gadget auto", "Gadget auto", "Auto-Gadget", "Gadget auto"},
+            {"Stealth", "Discr\u00e9tion", "Sigilo", "Furtivo", "Tarnung", "Furtivit\u00e0"},
+            {"Auto Dodge", "Esquive auto", "Esquiva auto", "Esquiva auto", "Auto-Ausweichen", "Schivata auto"},
+            {"Hazards", "Dangers", "Peligros", "Perigos", "Gefahren", "Pericoli"},
+            {"Nick Changer", "Changer pseudo", "Cambiar nombre", "Mudar nick", "Namens\u00e4nderung", "Cambia nome"},
+            {"Reaction", "R\u00e9action", "Reacci\u00f3n", "Rea\u00e7\u00e3o", "Reaktion", "Reazione"},
+            {"Safety", "S\u00e9curit\u00e9", "Seguridad", "Seguran\u00e7a", "Sicherheit", "Sicurezza"},
+            {"Power", "Puissance", "Potencia", "Pot\u00eancia", "St\u00e4rke", "Potenza"},
+            {"Distance", "Distance", "Distancia", "Dist\u00e2ncia", "Distanz", "Distanza"},
+            {"Commit", "Engagement", "Compromiso", "Compromisso", "Festlegung", "Impegno"},
+            {"Burst", "Rafale", "R\u00e1faga", "Rajada", "Sto\u00df", "Raffica"},
+            {"Filter", "Filtre", "Filtro", "Filtro", "Filter", "Filtro"},
+            {"React", "R\u00e9activit\u00e9", "Reacci\u00f3n", "Rea\u00e7\u00e3o", "Reaktion", "Reazione"},
+            {"Smooth", "Fluidit\u00e9", "Suavizado", "Suaviza\u00e7\u00e3o", "Gl\u00e4ttung", "Fluidit\u00e0"},
+            {"Menu Scale", "Taille du menu", "Tama\u00f1o del men\u00fa", "Tamanho do menu", "Men\u00fcgr\u00f6\u00dfe", "Dimensione menu"},
+            {"Opacity", "Opacit\u00e9", "Opacidad", "Opacidade", "Deckkraft", "Opacit\u00e0"},
+            {"Language", "Langue", "Idioma", "Idioma", "Sprache", "Lingua"},
+            {"Config", "Config", "Config", "Config", "Profil", "Config"},
+            {"Save", "Sauver", "Guardar", "Salvar", "Speichern", "Salva"},
+            {"No settings for this feature", "Aucun r\u00e9glage pour cette fonction", "Sin ajustes para esta funci\u00f3n",
+                    "Sem ajustes para esta fun\u00e7\u00e3o", "Keine Einstellungen f\u00fcr diese Funktion",
+                    "Nessuna impostazione per questa funzione"},
+            {"JZ Brawl community", "Communaut\u00e9 JZ Brawl", "Comunidad JZ Brawl", "Comunidade JZ Brawl",
+                    "JZ Brawl Community", "Community JZ Brawl"},
+            {"Drag to move the menu  -  tap Edit GUI to finish",
+                    "Glisse pour d\u00e9placer le menu  -  touche Modifier pour finir",
+                    "Arrastra para mover el men\u00fa  -  toca Editar para terminar",
+                    "Arraste para mover o menu  -  toque em Editar para terminar",
+                    "Ziehen zum Verschieben  -  Bearbeiten tippen zum Beenden",
+                    "Trascina per spostare il menu  -  tocca Modifica per finire"},
+            {"JZS Brawl is operational, start playing now!",
+                    "JZS Brawl est op\u00e9rationnel, commence \u00e0 jouer d\u00e8s maintenant !",
+                    "\u00a1JZS Brawl est\u00e1 operativo, empieza a jugar ya!",
+                    "JZS Brawl est\u00e1 funcionando, comece a jogar agora!",
+                    "JZS Brawl ist einsatzbereit, spiel jetzt los!",
+                    "JZS Brawl \u00e8 operativo, inizia a giocare ora!"},
+            {"JZS is free, never paid", "JZS est gratuit, jamais payant", "JZS es gratis, nunca de pago",
+                    "JZS \u00e9 gr\u00e1tis, nunca pago", "JZS ist kostenlos, niemals kostenpflichtig",
+                    "JZS \u00e8 gratis, mai a pagamento"},
+    };
+
+    static String T(String en) {
+        if (sLang <= 0 || en == null) return en;
+        for (String[] row : I18N) {
+            if (row[0].equals(en)) return row.length > sLang ? row[sLang] : en;
+        }
+        return en;
     }
 
     // ------------------------------------------------------------------ panel
@@ -342,7 +484,7 @@ public final class JZSModMenu {
 
         final Box lib = new Box(act, Gfx.LIBRARY, new Painter() {
             public void paint(Canvas c, Box b) {
-                Gfx.text(c, "Library", 26, 48, 23, 0xFFFFFFFF, Gfx.LILITA, 0, true);
+                Gfx.textFit(c, T("Library"), 26, 48, 23, 92, 0xFFFFFFFF, Gfx.LILITA, true);
                 Gfx.chevron(c, 125, 41.5f, 0xFFFFFFFF);
             }
         });
@@ -353,7 +495,7 @@ public final class JZSModMenu {
         };
         place(sPanel, lib, 280, BTN_Y, 167, BTN_H);
 
-        Box friends = headerButton(act, Gfx.FRIENDS, 0, "Friends", 43, 80);
+        Box friends = headerButton(act, Gfx.FRIENDS, 0, "Friends", 43, 80, 179);
         friends.click = new Click() {
             public void click(Box b, float x, float y) {
                 showFriends(act);
@@ -361,7 +503,7 @@ public final class JZSModMenu {
         };
         place(sPanel, friends, 1002, BTN_Y, 179, BTN_H);
 
-        Box settings = headerButton(act, Gfx.SETTINGS, 1, "Settings", 41, 77);
+        Box settings = headerButton(act, Gfx.SETTINGS, 1, "Settings", 41, 77, 184);
         settings.click = new Click() {
             public void click(Box b, float x, float y) {
                 showSettings(act);
@@ -369,7 +511,7 @@ public final class JZSModMenu {
         };
         place(sPanel, settings, 1195, BTN_Y, 184, BTN_H);
 
-        sEditBtn = headerButton(act, Gfx.EDIT, 2, "Edit GUI", 41, 77);
+        sEditBtn = headerButton(act, Gfx.EDIT, 2, "Edit GUI", 41, 77, 185);
         sEditBtn.click = new Click() {
             public void click(Box b, float x, float y) {
                 setEditMode(act, !sEdit);
@@ -391,13 +533,13 @@ public final class JZSModMenu {
     }
 
     private static Box headerButton(Activity act, Gfx.Skin skin, final int emoji, final String label,
-                                    final float iconCx, final float textX) {
+                                    final float iconCx, final float textX, final float bw) {
         return new Box(act, skin, new Painter() {
             public void paint(Canvas c, Box b) {
                 if (emoji == 0) Gfx.emoji(c, Gfx.EMO_FRIENDS, iconCx, 40, 50, 0);
                 else if (emoji == 1) Gfx.emoji(c, Gfx.EMO_GEAR, iconCx, 38, 0, 47);
                 else Gfx.emoji(c, Gfx.EMO_WRENCH, iconCx, 38, 48, 0);
-                Gfx.text(c, label, textX, 47, 23, 0xFFFFFFFF, Gfx.LILITA, 0, true);
+                Gfx.textFit(c, T(label), textX, 47, 23, bw - textX - 16, 0xFFFFFFFF, Gfx.LILITA, true);
             }
         });
     }
@@ -413,7 +555,7 @@ public final class JZSModMenu {
                     if (gi == 0) Gfx.target(c, 67.5f, 47, face);
                     else if (gi == 1) Gfx.eye(c, 67.5f, 46);
                     else Gfx.wrench(c, 67.5f, 46, face);
-                    Gfx.textCentered(c, GROUPS[gi], 67.5f, 95, 22, 0xFFFFFFFF, Gfx.LILITA, true);
+                    Gfx.textFitCentered(c, T(GROUPS[gi]), 67.5f, 95, 22, 118, 0xFFFFFFFF, Gfx.LILITA, true);
                     int n = countOn(GROUPS[gi], null);
                     if (n > 0) Gfx.badge(c, 107, 26.5f, 16, String.valueOf(n),
                             b.selected ? 0xFF46454B : 0xFF2C2B30, 17);
@@ -481,14 +623,15 @@ public final class JZSModMenu {
                 final int ti = i;
                 final String sub = subs.get(i);
                 final int n = countOn(GROUPS[sGroup], sub);
-                float tw = Gfx.textW(sub, 24, Gfx.LILITA, 0);
+                final String subT = T(sub);
+                float tw = Gfx.textW(subT, 24, Gfx.LILITA, 0);
                 float w = n > 0 ? tw + 108 : tw + 56;
                 final float textX = n > 0 ? 31 : 28;
                 Box tab = new Box(act, Gfx.TAB, new Painter() {
                     public void paint(Canvas c, Box b) {
-                        Gfx.text(c, sub, textX, 42, 24, 0xFFFFFFFF, Gfx.LILITA, 0, true);
+                        Gfx.text(c, subT, textX, 42, 24, 0xFFFFFFFF, Gfx.LILITA, 0, true);
                         if (n > 0) {
-                            float bx = textX + Gfx.textW(sub, 24, Gfx.LILITA, 0) + 30;
+                            float bx = textX + Gfx.textW(subT, 24, Gfx.LILITA, 0) + 30;
                             Gfx.badge(c, bx, 33, 15.5f, String.valueOf(n),
                                     b.selected ? 0xFF48474C : 0xFF2B2A2F, 18);
                         }
@@ -510,7 +653,7 @@ public final class JZSModMenu {
         sConfigBtn = new Box(act, Gfx.CONFIG, new Painter() {
             public void paint(Canvas c, Box b) {
                 Gfx.layoutIcon(c, 40.5f, 33.5f);
-                Gfx.text(c, configName(sConfig), 69, 44, 23, 0xFFFFFFFF, Gfx.LILITA, 0, true);
+                Gfx.textFit(c, configName(sConfig), 69, 44, 23, 108, 0xFFFFFFFF, Gfx.LILITA, true);
                 Gfx.chevron(c, 195, 37.5f, 0xFFFFFFFF);
             }
         });
@@ -538,7 +681,7 @@ public final class JZSModMenu {
         et.setSingleLine(true);
         et.setTextColor(0xFFFFFFFF);
         et.setHintTextColor(0xFFA9A8AE);
-        et.setHint("Search features...");
+        et.setHint(T("Search features..."));
         et.setTypeface(Gfx.LILITA);
         et.setTextSize(TypedValue.COMPLEX_UNIT_PX, 24 * sS);
         et.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
@@ -588,6 +731,7 @@ public final class JZSModMenu {
             String q = sQuery.trim().toLowerCase(Locale.US);
             for (String[] t : TOGGLES) {
                 if (q.length() == 0 || t[0].toLowerCase(Locale.US).contains(q)
+                        || T(t[0]).toLowerCase(Locale.getDefault()).contains(q)
                         || t[3].toLowerCase(Locale.US).contains(q)) hits.add(t);
             }
             y = addSection(act, hits.isEmpty() ? "No results" : "Results", hits, y);
@@ -609,7 +753,7 @@ public final class JZSModMenu {
     private static float addSection(final Activity act, final String label, ArrayList<String[]> feats, float y) {
         int rows = Math.max(1, (feats.size() + 2) / 3);
         final float h = feats.isEmpty() ? 100 : 81 + rows * CARD_ROW;
-        final String up = label.toUpperCase(Locale.US);
+        final String up = T(label).toUpperCase(Locale.getDefault());
         View sec = new View(act) {
             @Override
             protected void onDraw(Canvas c) {
@@ -624,7 +768,7 @@ public final class JZSModMenu {
             final String[] f = feats.get(i);
             Box card = new Box(act, Gfx.CARD, new Painter() {
                 public void paint(Canvas c, Box b) {
-                    Gfx.cardContent(c, b.w(), b.faceH(), f[0], b.selected);
+                    Gfx.cardContent(c, b.w(), b.faceH(), T(f[0]), b.selected);
                 }
             });
             card.selected = isOn(f[1]);
@@ -750,7 +894,7 @@ public final class JZSModMenu {
                 protected void onDraw(Canvas c) {
                     c.save();
                     c.scale(sS, sS);
-                    Gfx.editOverlay(c, PANEL_W, PANEL_H);
+                    Gfx.editOverlay(c, PANEL_W, PANEL_H, T("Drag to move the menu  -  tap Edit GUI to finish"));
                     c.restore();
                 }
 
@@ -869,7 +1013,7 @@ public final class JZSModMenu {
         float mh = sl.isEmpty() ? 250 : 112 + sl.size() * 104 + 20;
         mh = Math.min(mh, PANEL_H - 60);
         float mx = (PANEL_W - mw) / 2f, my = (PANEL_H - mh) / 2f;
-        place(layer, modalFrame(act, feat[0], mw, mh), mx, my, mw, mh);
+        place(layer, modalFrame(act, T(feat[0]), mw, mh), mx, my, mw, mh);
         addModalClose(act, layer, mx, my, mw);
         if (sl.isEmpty()) {
             View msg = new View(act) {
@@ -877,7 +1021,7 @@ public final class JZSModMenu {
                 protected void onDraw(Canvas c) {
                     c.save();
                     c.scale(sS, sS);
-                    Gfx.textCentered(c, "No settings for this feature", 450, 60, 24, 0xFFA9A8AE, Gfx.LILITA, false);
+                    Gfx.textFitCentered(c, T("No settings for this feature"), 450, 60, 24, 820, 0xFFA9A8AE, Gfx.LILITA, false);
                     c.restore();
                 }
             };
@@ -915,7 +1059,7 @@ public final class JZSModMenu {
             protected void onDraw(Canvas c) {
                 c.save();
                 c.scale(sS, sS);
-                Gfx.sliderRow(c, w, label, val[0], min, max, trackX, trackW);
+                Gfx.sliderRow(c, w, T(label), val[0], min, max, trackX, trackW);
                 c.restore();
             }
 
@@ -980,12 +1124,13 @@ public final class JZSModMenu {
 
     private static void showSettings(final Activity act) {
         FrameLayout layer = openLayer(act, true);
-        float mw = 900, mh = 112 + 2 * 104 + 20;
+        float mw = 900, mh = 112 + 3 * 104 + 20;
         float mx = (PANEL_W - mw) / 2f, my = (PANEL_H - mh) / 2f;
-        place(layer, modalFrame(act, "Settings", mw, mh), mx, my, mw, mh);
+        place(layer, modalFrame(act, T("Settings"), mw, mh), mx, my, mw, mh);
         addModalClose(act, layer, mx, my, mw);
         FrameLayout list = new FrameLayout(act);
-        place(layer, list, mx + 24, my + 104, mw - 48, 2 * 104);
+        place(layer, list, mx + 24, my + 104, mw - 48, 3 * 104);
+        addLanguageRow(act, list, 0, 208, mw - 48);
         addSliderRow(act, list, 0, 0, mw - 48, "Menu Scale", null, 60, 130, 5,
                 Math.round(sUserScale * 100), new ValueSink() {
                     public void set(int v) {
@@ -1012,11 +1157,43 @@ public final class JZSModMenu {
                 });
     }
 
+    private static void addLanguageRow(final Activity act, FrameLayout parent, float x, float y, final float w) {
+        View row = new View(act) {
+            @Override
+            protected void onDraw(Canvas c) {
+                c.save();
+                c.scale(sS, sS);
+                Gfx.sliderRowFrame(c, w, T("Language"));
+                c.restore();
+            }
+        };
+        place(parent, row, x, y, w, 96);
+        Box pick = new Box(act, Gfx.CONFIG, new Painter() {
+            public void paint(Canvas c, Box b) {
+                Gfx.textFit(c, LANG_NAMES[sLang], 22, 45, 23, b.w() - 70, 0xFFFFFFFF, Gfx.LILITA, true);
+                Gfx.chevron(c, b.w() - 30, 38.5f, 0xFFFFFFFF);
+            }
+        });
+        pick.click = new Click() {
+            public void click(Box b, float cx, float cy) {
+                dropdown(act, (PANEL_W - 340) / 2f, 150, 340, LANG_NAMES, sLang, new ValueSink() {
+                    public void set(int v) {
+                        sLang = v;
+                        sPrefs.edit().putInt("lang", v).apply();
+                        sOpen = true;
+                        rebuild();
+                    }
+                });
+            }
+        };
+        place(parent, pick, x + w - 320, y + 8, 300, 82);
+    }
+
     private static void showFriends(final Activity act) {
         FrameLayout layer = openLayer(act, true);
         final float mw = 760, mh = 330;
         float mx = (PANEL_W - mw) / 2f, my = (PANEL_H - mh) / 2f;
-        place(layer, modalFrame(act, "Friends", mw, mh), mx, my, mw, mh);
+        place(layer, modalFrame(act, T("Friends"), mw, mh), mx, my, mw, mh);
         addModalClose(act, layer, mx, my, mw);
         View body = new View(act) {
             @Override
@@ -1024,7 +1201,7 @@ public final class JZSModMenu {
                 c.save();
                 c.scale(sS, sS);
                 Gfx.emoji(c, Gfx.EMO_FRIENDS, 80, 60, 90, 0);
-                Gfx.text(c, "JZ Brawl community", 150, 50, 28, 0xFFFFFFFF, Gfx.LILITA, 0, true);
+                Gfx.textFit(c, T("JZ Brawl community"), 150, 50, 28, 590, 0xFFFFFFFF, Gfx.LILITA, true);
                 Gfx.text(c, "Discord : jzbrawl.fr", 150, 92, 22, 0xFFC4C3C8, Gfx.LILITA, 0, false);
                 Gfx.text(c, "Telegram : JZ Brawl | Cheating", 150, 128, 22, 0xFFC4C3C8, Gfx.LILITA, 0, false);
                 c.restore();
@@ -1048,7 +1225,7 @@ public final class JZSModMenu {
     }
 
     private static String configName(int i) {
-        return "Config " + (i + 1);
+        return T("Config") + " " + (i + 1);
     }
 
     private static void showConfigs(final Activity act, Box anchor) {
@@ -1075,7 +1252,7 @@ public final class JZSModMenu {
             place(layer, name, lx + 12, y + 12 + i * rowH, w - 24 - 110, rowH - 8);
             Box save = new Box(act, Gfx.EDIT, new Painter() {
                 public void paint(Canvas c, Box b) {
-                    Gfx.textCentered(c, "Save", b.w() / 2f, 38, 21, 0xFFFFFFFF, Gfx.LILITA, true);
+                    Gfx.textFitCentered(c, T("Save"), b.w() / 2f, 38, 21, 86, 0xFFFFFFFF, Gfx.LILITA, true);
                 }
             });
             save.click = new Click() {
@@ -1115,7 +1292,7 @@ public final class JZSModMenu {
             final int ii = i;
             Box row = new Box(act, Gfx.TAB_FLAT, new Painter() {
                 public void paint(Canvas c, Box b) {
-                    Gfx.text(c, items[ii], 22, 38, 22, 0xFFFFFFFF, Gfx.LILITA, 0, true);
+                    Gfx.textFit(c, T(items[ii]), 22, 38, 22, b.w() - 40, 0xFFFFFFFF, Gfx.LILITA, true);
                 }
             });
             row.selected = i == sel;
@@ -1475,6 +1652,41 @@ public final class JZSModMenu {
             }
         }
 
+        /** Draws text, shrinking the font so it never gets wider than maxW. */
+        static void textFit(Canvas c, String t, float x, float base, float size, float maxW, int color,
+                            Typeface tf, boolean shadow) {
+            float w = textW(t, size, tf, 0);
+            if (w > maxW && w > 0) size = size * maxW / w;
+            text(c, t, x, base, size, color, tf, 0, shadow);
+        }
+
+        static void textFitCentered(Canvas c, String t, float cx, float base, float size, float maxW, int color,
+                                    Typeface tf, boolean shadow) {
+            float w = textW(t, size, tf, 0);
+            if (w > maxW && w > 0) {
+                size = size * maxW / w;
+                w = maxW;
+            }
+            text(c, t, cx - w / 2f, base, size, color, tf, 0, shadow);
+        }
+
+        /** White Lilita text with a thick dark outline, readable over the game. */
+        static void outlinedText(Canvas c, String t, float x, float base, float size, int color) {
+            P.reset();
+            P.setAntiAlias(true);
+            P.setTypeface(LILITA);
+            P.setTextSize(size);
+            P.setStyle(Paint.Style.STROKE);
+            P.setStrokeJoin(Paint.Join.ROUND);
+            P.setStrokeWidth(size * 0.22f);
+            P.setColor(0xFF0A090E);
+            c.drawText(t, x, base + 2.5f, P);
+            c.drawText(t, x, base, P);
+            P.setStyle(Paint.Style.FILL);
+            P.setColor(color);
+            c.drawText(t, x, base, P);
+        }
+
         static void textCentered(Canvas c, String t, float cx, float base, float size, int color, Typeface tf,
                                  boolean shadow) {
             float w = textW(t, size, tf, 0);
@@ -1551,7 +1763,7 @@ public final class JZSModMenu {
             fill(on ? 0xFF4E5158 : 0xFF3B3A3F);
             c.drawRect(372, 6, 375, faceH - 3 - (on ? 3 : 0), P);
             sliders(c, 417, 66, face);
-            text(c, name, 28, 51, 29, 0xFFFFFFFF, LILITA, 0, true);
+            textFit(c, name, 28, 51, 29, 330, 0xFFFFFFFF, LILITA, true);
             pill(c, 31, 75, on);
         }
 
@@ -1596,7 +1808,7 @@ public final class JZSModMenu {
             rr(c, 3, 3, w - 3, h - 3, 15);
         }
 
-        static void editOverlay(Canvas c, float w, float h) {
+        static void editOverlay(Canvas c, float w, float h, String msg) {
             fill(0x33000000);
             rr(c, 0, 0, w, h, 30);
             stroke(0xFF41ACF2, 5);
@@ -1604,8 +1816,15 @@ public final class JZSModMenu {
             R.set(6, 6, w - 6, h - 6);
             c.drawRoundRect(R, 26, 26, P);
             P.setPathEffect(null);
-            textCentered(c, "Drag to move the menu  -  tap Edit GUI to finish", w / 2f, h / 2f, 30,
-                    0xFFFFFFFF, LILITA, true);
+            textFitCentered(c, msg, w / 2f, h / 2f, 30, w - 80, 0xFFFFFFFF, LILITA, true);
+        }
+
+        static void sliderRowFrame(Canvas c, float w, String label) {
+            fill(0xFF19181D);
+            rr(c, 0, 0, w, 96, 14);
+            fill(0xFF2E2D32);
+            rr(c, 2, 2, w - 2, 94, 12);
+            textFit(c, label, 22, 57, 26, w - 360, 0xFFFFFFFF, LILITA, true);
         }
 
         static void sliderRow(Canvas c, float w, String label, int v, int min, int max, float tx, float tw) {
@@ -1613,7 +1832,7 @@ public final class JZSModMenu {
             rr(c, 0, 0, w, 96, 14);
             fill(0xFF2E2D32);
             rr(c, 2, 2, w - 2, 94, 12);
-            text(c, label, 22, 57, 26, 0xFFFFFFFF, LILITA, 0, true);
+            textFit(c, label, 22, 57, 26, tx - 130, 0xFFFFFFFF, LILITA, true);
             String vs = String.valueOf(v);
             float vw = textW(vs, 24, LILITA, 0);
             text(c, vs, tx - 26 - vw, 56, 24, 0xFFC4C3C8, LILITA, 0, false);
