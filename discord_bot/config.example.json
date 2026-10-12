@@ -1,0 +1,9 @@
+{
+  "discord_token": "COLLE_ICI_LE_TOKEN_DU_BOT_DISCORD",
+  "github_token": "COLLE_ICI_UN_TOKEN_GITHUB_(contents: write sur le repo)",
+  "github_repo": "Labakadu37/Brawl-star-",
+  "status_branch": "status",
+  "discord_invite": "https://discord.gg/jzbrawl",
+  "guild_id": "ID_DE_TON_SERVEUR_DISCORD_(optionnel, pour sync instantané)",
+  "admins": ["TON_ID_DISCORD"]
+}
