@@ -283,6 +283,9 @@ public final class JZSModMenu {
 
     // ------------------------------------------------------------------ watermark (top-left)
 
+    /** Brawl Stars "Play" green. */
+    static final int BS_GREEN = 0xFF7CE11F;
+
     private static void buildWatermark(Activity act) {
         final float base = sS / sUserScale;
         sWatermark = new View(act) {
@@ -290,14 +293,14 @@ public final class JZSModMenu {
             protected void onDraw(Canvas c) {
                 c.save();
                 c.scale(base, base);
-                Gfx.outlinedText(c, T("JZS Brawl is operational, start playing now!"), 24, 46, 30, 0xFFFFFFFF);
-                Gfx.outlinedText(c, T("JZS is free, never paid"), 24, 80, 23, 0xFFFFD84A);
+                Gfx.outlinedText(c, T("JZS Brawl is operational, start playing now!"), 26, 58, 42, BS_GREEN);
+                Gfx.outlinedText(c, T("JZS is free, never paid"), 26, 104, 34, BS_GREEN);
                 c.restore();
             }
         };
         sWatermark.setClickable(false);
         sWatermark.setFocusable(false);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Math.round(1100 * base), Math.round(100 * base));
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Math.round(1800 * base), Math.round(130 * base));
         lp.gravity = Gravity.TOP | Gravity.LEFT;
         sRoot.addView(sWatermark, lp);
     }
