@@ -19,6 +19,7 @@ public final class JZSInit {
             android.util.Log.i("JZS", "JZS Brawl init - " + JZSOverlay.MOD_VERSION);
         }
         JZSOverlay.attach(activity);
+        JZSNetInfo.attach(activity);
         // Intro animation first, then the welcome guide on first launch.
         JZSSplash.show(activity, new Runnable() {
             @Override

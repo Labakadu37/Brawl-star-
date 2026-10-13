@@ -25,6 +25,13 @@ serve as a signature stamp (`JNI_OnLoad` logs and exports
 - Les deux reprennent les couleurs du menu et la police LilitaOne du jeu.
   Le texte est en français ou en anglais selon la langue du téléphone.
 
+- **IP:port de la partie** (`JZSNetInfo`) : petite ligne en haut à gauche,
+  sous le badge. `PARTIE 1.2.3.4:5678` en vert pendant un match (UDP),
+  `LOBBY 1.2.3.4:9339` en bleu dans les menus, cachée sans connexion.
+  Rafraîchie chaque seconde. Rien n'est hooké : `libjz.so` lit simplement
+  l'adresse des sockets du jeu avec `getpeername()`. Règle la hauteur avec
+  `JZSNetInfo.TOP_DP` et masque-la avec `JZSNetInfo.setEnabled(false)`.
+
 ### Brancher sur la V5.5
 
 Dans le `JZSInit.install` de la V5.5, ajoute après `JZSModMenu.attach(activity);` :
@@ -36,6 +43,12 @@ JZSSplash.show(activity, new Runnable() {
 ```
 
 et copie `JZSUi.java`, `JZSSplash.java` et `JZSNotice.java` à côté.
+
+Pour l'IP:port, ajoute aussi `JZSNetInfo.attach(activity);`, copie
+`JZSNetInfo.java`, et mets le `libjz.so` compilé (`ndk-build`) dans
+`lib/arm64-v8a/` de l'APK : la V5.5 ne contient que `libjzbrawl.so`.
+Ton texte vert est dessiné par `libjzbrawl.so` : si la ligne le chevauche,
+monte `JZSNetInfo.TOP_DP` avant `attach`.
 Pour un bouton « Guide » dans le menu, appelle simplement `JZSNotice.show(activity)`.
 
 ## Layout
@@ -47,6 +60,7 @@ mod/
 │   │   ├── JZSOverlay.java       adds the TextView to the game window
 │   │   ├── JZSSplash.java        animated intro on launch
 │   │   ├── JZSNotice.java        first-launch welcome guide
+│   │   ├── JZSNetInfo.java       match server ip:port line
 │   │   ├── JZSUi.java            shared colors / font / helpers
 │   │   └── JZSInit.java          loads libjz.so, attaches overlay, splash, notice
 │   └── smali/
