@@ -6,7 +6,7 @@
 # What it does:
 #     Adds an invoke-static to com.jzs.brawl.JZSInit.install(this) at the
 #     end of GameApp.onCreate(Landroid/os/Bundle;)V, so that our overlay
-#     TextView "JZS V1 (lastest)" is drawn on top of the Titan surface.
+#     TextView "JZS V6.0" is drawn on top of the Titan surface.
 #
 # Instructions:
 #     1. apktool d com.supercell.brawlstars.apk -o work/

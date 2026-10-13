@@ -8,7 +8,7 @@
 
 #define JZS_TAG      "JZS"
 #define JZS_MOD_NAME "JZS Brawl"
-#define JZS_VERSION  "JZS V1 (lastest)"
+#define JZS_VERSION  "JZS V6.0"
 
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  JZS_TAG, __VA_ARGS__)
 

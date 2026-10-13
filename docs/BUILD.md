@@ -81,7 +81,7 @@ JNI export.
 apktool b out/work -o out/jzs-brawl-unsigned.apk
 zipalign -p -f 4 out/jzs-brawl-unsigned.apk out/jzs-brawl-aligned.apk
 apksigner sign --ks out/jzs.keystore --ks-pass pass:jzsjzs \
-    --out out/jzs-brawl-v1.apk out/jzs-brawl-aligned.apk
+    --out out/jzs-brawl-v6.apk out/jzs-brawl-aligned.apk
 ```
 
 A fresh debug keystore is generated the first time. It stays under
@@ -94,9 +94,9 @@ After install, check `logcat`:
 
 ```
 adb logcat -s JZS
-I JZS: JZS Brawl init - JZS V1 (lastest)
-I JZS: libjz loaded - JZS Brawl JZS V1 (lastest)
-I JZS: JZS Brawl overlay attached: JZS V1 (lastest)
+I JZS: JZS Brawl init - JZS V6.0
+I JZS: libjz loaded - JZS Brawl JZS V6.0
+I JZS: JZS Brawl overlay attached: JZS V6.0
 ```
 
 If you see the three lines, the badge is on screen.

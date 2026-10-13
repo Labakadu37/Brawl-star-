@@ -13,7 +13,7 @@ unchanged.
 1. Copy the whole XAPK folder onto your device (or repack it as a `.zip`
    and rename to `.xapk`).
 2. Replace `com.supercell.brawlstars.apk` inside the zip with the freshly
-   built `out/jzs-brawl-v1.apk` (keep the file name unchanged so SAI
+   built `out/jzs-brawl-v6.apk` (keep the file name unchanged so SAI
    still recognizes it as the base).
 3. Open the `.xapk` with SAI and hit install.
 
@@ -21,7 +21,7 @@ unchanged.
 
 ```bash
 adb install-multiple \
-    out/jzs-brawl-v1.apk \
+    out/jzs-brawl-v6.apk \
     xapk/config.armeabi_v7a.apk \
     xapk/config.en.apk \
     xapk/config.mdpi.apk \
@@ -38,14 +38,14 @@ adb logcat -s JZS
 ```
 
 You should see the three-line boot log documented at the end of
-`BUILD.md`, and the badge `JZS V1 (lastest)` in the top-left of the game
+`BUILD.md`, and the badge `JZS V6.0` in the top-left of the game
 screen.
 
 ## Troubleshooting
 
 - **App crashes at boot with `ClassNotFoundException: com.jzs.brawl.JZSInit`**
   → your extra smali got dropped. Re-run the build and grep for
-  `com/jzs/brawl` in the reassembled APK: `unzip -l out/jzs-brawl-v1.apk |
+  `com/jzs/brawl` in the reassembled APK: `unzip -l out/jzs-brawl-v6.apk |
   grep classes`. You should see at least `classes3.dex`.
 - **Install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`** → you have
   the Play Store version installed. Uninstall it first.

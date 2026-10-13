@@ -8,7 +8,7 @@
 # file, edit the .java instead.
 
 .field public static final MOD_NAME:Ljava/lang/String; = "JZS Brawl"
-.field public static final MOD_VERSION:Ljava/lang/String; = "JZS V1 (lastest)"
+.field public static final MOD_VERSION:Ljava/lang/String; = "JZS V6.0"
 .field private static sBadge:Landroid/widget/TextView;
 
 # Method bodies intentionally omitted; the build regenerates the full

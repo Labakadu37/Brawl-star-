@@ -8,7 +8,7 @@ public final class JZSInit {
 
     private JZSInit() {}
 
-    public static synchronized void install(Activity activity) {
+    public static synchronized void install(final Activity activity) {
         if (!sLoaded) {
             try {
                 System.loadLibrary("jz");
@@ -19,6 +19,13 @@ public final class JZSInit {
             android.util.Log.i("JZS", "JZS Brawl init - " + JZSOverlay.MOD_VERSION);
         }
         JZSOverlay.attach(activity);
+        // Intro animation first, then the welcome guide on first launch.
+        JZSSplash.show(activity, new Runnable() {
+            @Override
+            public void run() {
+                JZSNotice.showIfFirstTime(activity);
+            }
+        });
     }
 
     public static native String nativeVersion();

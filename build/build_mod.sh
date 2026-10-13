@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # JZS Brawl - build pipeline
 #
-# Produces a signed APK of Brawl Stars with the JZS V1 overlay injected.
+# Produces a signed APK of Brawl Stars with the JZS V6 overlay injected.
 #
 # Requirements (install these before running):
 #   - JDK 17+                    (javac, jar)
@@ -76,7 +76,7 @@ fi
 
 apksigner sign --ks "$OUT/jzs.keystore" --ks-pass pass:jzsjzs \
     --key-pass pass:jzsjzs --v1-signing-enabled true --v2-signing-enabled true \
-    --out "$OUT/jzs-brawl-v1.apk" "$OUT/jzs-brawl-aligned.apk"
+    --out "$OUT/jzs-brawl-v6.apk" "$OUT/jzs-brawl-aligned.apk"
 
 echo
-echo "OK - built: $OUT/jzs-brawl-v1.apk"
+echo "OK - built: $OUT/jzs-brawl-v6.apk"

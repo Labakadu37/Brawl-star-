@@ -15,7 +15,7 @@ import android.widget.TextView;
 public final class JZSOverlay {
 
     public static final String MOD_NAME = "JZS Brawl";
-    public static final String MOD_VERSION = "JZS V1 (lastest)";
+    public static final String MOD_VERSION = "JZS V6.0";
 
     private static TextView sBadge;
 
