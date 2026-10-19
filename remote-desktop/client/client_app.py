@@ -25,20 +25,47 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from common import protocol
 from common.keymap import build_special_keys
 
-FPS = 15
-JPEG_QUALITY = 60
-MAX_WIDTH = 1280            # downscale wide screens to save bandwidth
+# Defaults tuned for a local network: native resolution, crisp JPEG.
+FPS = 20
+JPEG_QUALITY = 85
+MAX_WIDTH = 0              # 0 = never downscale (send the real resolution)
+
+
+def set_dpi_aware():
+    """On Windows, make this process DPI-aware.
+
+    Without this, display scaling (125%, 150%, ...) makes the captured
+    pixels and the cursor coordinates disagree, so remote clicks land in
+    the wrong place and nothing opens. This fixes that; it is a no-op on
+    other systems.
+    """
+    if not sys.platform.startswith("win"):
+        return
+    import ctypes
+
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)   # per-monitor aware
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
 
 
 class ScreenShareService:
     """Owns the TCP listener and one active admin session at a time."""
 
-    def __init__(self, name, port, token, require_approval, ui_queue):
+    def __init__(self, name, port, token, require_approval, ui_queue,
+                 fps=FPS, quality=JPEG_QUALITY, max_width=MAX_WIDTH):
         self.name = name
         self.port = port
         self.token = token
         self.require_approval = require_approval
         self.ui = ui_queue            # (tag, value) messages for the GUI
+        self.fps = fps
+        self.quality = quality
+        self.max_width = max_width
+        self._input_error_reported = False
         self.stop_event = threading.Event()
         self.session_lock = threading.Lock()
         self.active_admin = None      # address tuple, or None
@@ -195,15 +222,15 @@ class ScreenShareService:
             mon = sct.monitors[1]
             w, h = mon["width"], mon["height"]
         scale = 1.0
-        if w > MAX_WIDTH:
-            scale = MAX_WIDTH / float(w)
+        if self.max_width and w > self.max_width:
+            scale = self.max_width / float(w)
         return w, h, scale
 
     def _send_frames(self, conn, send_lock, scale, stop):
         import mss
         from PIL import Image
 
-        interval = 1.0 / FPS
+        interval = 1.0 / self.fps
         with mss.mss() as sct:
             mon = sct.monitors[1]
             while not stop.is_set() and not self.stop_event.is_set():
@@ -217,7 +244,7 @@ class ScreenShareService:
                          max(1, int(img.height * scale))),
                         Image.BILINEAR)
                 buf = io.BytesIO()
-                img.save(buf, "JPEG", quality=JPEG_QUALITY)
+                img.save(buf, "JPEG", quality=self.quality)
                 try:
                     with send_lock:
                         protocol.send_msg(conn, protocol.MSG_FRAME,
@@ -278,8 +305,14 @@ class ScreenShareService:
                         self._keyboard.press(key)
                     else:
                         self._keyboard.release(key)
-            except Exception:
-                # A single bad event must never kill the session.
+            except Exception as exc:
+                # A single bad event must never kill the session, but the
+                # first failure is worth surfacing so a blocked input
+                # (e.g. an elevated target window) can be diagnosed.
+                if not self._input_error_reported:
+                    self._input_error_reported = True
+                    self.ui.put(("status",
+                                 "⚠ Entrée bloquée : %s" % exc))
                 continue
 
     def _resolve_key(self, ev):
@@ -393,11 +426,21 @@ def main():
                     help="clé partagée exigée de l'admin")
     ap.add_argument("--ask", action="store_true",
                     help="demander une confirmation à chaque connexion")
+    ap.add_argument("--fps", type=int, default=FPS,
+                    help="images par seconde (défaut %d)" % FPS)
+    ap.add_argument("--quality", type=int, default=JPEG_QUALITY,
+                    help="qualité JPEG 1-95 (défaut %d)" % JPEG_QUALITY)
+    ap.add_argument("--max-width", type=int, default=MAX_WIDTH,
+                    help="réduire au-delà de cette largeur (0 = jamais)")
     args = ap.parse_args()
+
+    set_dpi_aware()
 
     ui_queue = queue.Queue()
     service = ScreenShareService(args.name, args.port, args.token,
-                                 args.ask, ui_queue)
+                                 args.ask, ui_queue, fps=args.fps,
+                                 quality=max(1, min(95, args.quality)),
+                                 max_width=args.max_width)
     info = [
         ("Nom de ce PC", args.name),
         ("Adresse IP", protocol.local_ip()),

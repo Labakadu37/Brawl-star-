@@ -107,16 +107,36 @@ Les `.exe` acceptent les mêmes options que les scripts, par ex. :
 
 ```bash
 # Client
-python client_app.py --name "PC-Salon" --port 47900 --token ma-cle --ask
+python client_app.py --name "PC-Salon" --port 47900 --token ma-cle --ask \
+    --fps 20 --quality 85 --max-width 0
 
 # Admin
 python admin_app.py --token ma-cle --name "Mon-Portable"
 ```
 
+- `--fps` : fluidité (plus haut = plus fluide, plus de bande passante).
+- `--quality` : netteté JPEG 1–95 (défaut 85).
+- `--max-width` : `0` = résolution native (défaut). Mets p. ex. `1280`
+  pour réduire la bande passante sur un réseau lent.
+
+## Contrôle (souris / clavier)
+
+Le contrôle total est actif : clic, double-clic (ouvrir une page/appli),
+clic droit, **glisser-déposer**, molette et clavier (y compris les
+raccourcis comme Ctrl+C). Décoche **Contrôle actif** dans l'admin pour
+juste regarder sans toucher.
+
+> Le client se met automatiquement en mode *DPI-aware* sous Windows : sans
+> ça, avec une mise à l'échelle d'affichage à 125 %/150 %, les clics
+> tombaient à côté des icônes. Si une fenêtre lancée **en administrateur**
+> ne réagit pas aux clics, lance aussi le client *en administrateur* (clic
+> droit → Exécuter en tant qu'administrateur) — Windows interdit d'injecter
+> des entrées dans une fenêtre plus privilégiée.
+
 ## Limites connues
 
 - Partage le **moniteur principal** uniquement.
-- JPEG ~15 i/s, pensé pour un réseau local (pas de son, pas de transfert de
-  fichiers).
+- JPEG ~20 i/s en résolution native, pensé pour un réseau local (pas de
+  son, pas de transfert de fichiers).
 - Trafic **non chiffré** : à n'utiliser que sur un réseau de confiance.
   Pour traverser Internet, fais-le passer dans un **tunnel SSH** ou un VPN.

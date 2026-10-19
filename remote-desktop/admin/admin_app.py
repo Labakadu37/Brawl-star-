@@ -217,6 +217,11 @@ class AdminApp:
         self.canvas.pack(fill="both", expand=True)
 
         self.canvas.bind("<Motion>", self._on_move)
+        # While a button is held Tk sends B?-Motion instead of Motion;
+        # bind them too so dragging (windows, selections) works.
+        self.canvas.bind("<B1-Motion>", self._on_move)
+        self.canvas.bind("<B2-Motion>", self._on_move)
+        self.canvas.bind("<B3-Motion>", self._on_move)
         self.canvas.bind("<ButtonPress>", self._on_button)
         self.canvas.bind("<ButtonRelease>", self._on_button)
         self.canvas.bind("<MouseWheel>", self._on_wheel)        # Win / mac
