@@ -145,11 +145,8 @@ class ScreenShareService:
                 continue
             except OSError:
                 break
-            with self.session_lock:
-                busy = self.active_admin is not None
-            if busy:
-                self._reject(conn, "une autre session est déjà active")
-                continue
+            # Busy is decided in _handle, after the handshake: command-mode
+            # connections are handled even while a control session is live.
             threading.Thread(target=self._handle, args=(conn, addr),
                               daemon=True).start()
         srv.close()
@@ -176,6 +173,9 @@ class ScreenShareService:
                 return self._reject(conn, "clé incorrecte")
 
             admin_name = str(hello.get("admin", addr[0]))[:64]
+            mode = hello.get("mode", "control")
+            if mode == "command":
+                return self._handle_commands(conn, admin_name)
             if self.require_approval and not self._ask_approval(admin_name,
                                                                 addr[0]):
                 return self._reject(conn, "refusé par l'utilisateur")
@@ -218,6 +218,43 @@ class ScreenShareService:
             except OSError:
                 pass
             self.ui.put(("disconnected", None))
+
+    # -- command-mode session (no screen stream) -------------------------
+
+    def _handle_commands(self, conn, admin_name):
+        from common import commands
+
+        try:
+            protocol.send_msg(conn, protocol.MSG_WELCOME,
+                              {"name": self.name, "mode": "command"})
+            conn.settimeout(None)
+            while not self.stop_event.is_set():
+                msg_type, payload = protocol.recv_msg(conn)
+                if msg_type == protocol.MSG_BYE:
+                    break
+                if msg_type != protocol.MSG_COMMAND:
+                    continue
+                cmd = protocol.decode_json(payload)
+                kind = cmd.get("cmd")
+                if kind == "message":
+                    self.ui.put(("command_message",
+                                 (str(cmd.get("title", "Message"))[:120],
+                                  str(cmd.get("text", ""))[:2000],
+                                  admin_name)))
+                elif kind in commands.POWER_COMMANDS:
+                    self.ui.put(("status", "Commande reçue : %s" % kind))
+                    try:
+                        commands.run_power_command(kind)
+                    except Exception as exc:
+                        self.ui.put(("status", "Commande %s: %s"
+                                     % (kind, exc)))
+        except (OSError, ConnectionError, ValueError):
+            pass
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                pass
 
     # -- approval prompt (marshalled to the GUI thread) ------------------
 
@@ -514,6 +551,10 @@ class ClientGUI:
             self.stop_btn.configure(state="disabled")
         elif tag == "status":
             self.detail_lbl.configure(text=value)
+        elif tag == "command_message":
+            title, text, admin_name = value
+            self._show_window()
+            messagebox.showinfo(title, text, parent=self.root)
         elif tag == "approval":
             admin_name, ip, result, done = value
             self._show_window()

@@ -175,6 +175,20 @@ juste regarder sans toucher.
 > droit → Exécuter en tant qu'administrateur) — Windows interdit d'injecter
 > des entrées dans une fenêtre plus privilégiée.
 
+## Commandes (actions à distance)
+
+Sur chaque PC de la liste, le bouton **⚡** ouvre une fenêtre de commandes
+d'administration standard (comme TeamViewer) :
+
+- **Envoyer un message** : un popup (titre + texte) s'affiche sur le PC
+  distant.
+- **Verrouiller**, **Veille**, **Redémarrer**, **Éteindre** le PC distant
+  (redémarrer/éteindre demandent une confirmation).
+
+Ces commandes passent par la même clé partagée que le reste. Volontairement,
+il n'y a **que** ces actions saines — pas d'action cachée ni destructrice de
+données.
+
 ## Limites connues
 
 - Partage le **moniteur principal** uniquement.

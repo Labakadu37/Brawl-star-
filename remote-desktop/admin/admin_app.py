@@ -251,11 +251,122 @@ class AdminApp:
                       hover_color=ACCENT_HOVER, text_color="white",
                       font=("Segoe UI Semibold", 14),
                       command=lambda c=client: self._connect(
-                          c["ip"], c["port"])).pack(side="right", padx=16)
+                          c["ip"], c["port"])).pack(side="right",
+                                                    padx=(0, 16))
+        ctk.CTkButton(card, text="⚡", width=44, height=40, corner_radius=10,
+                      fg_color=CARD_HOVER, hover_color=BORDER, text_color=TEXT,
+                      font=("Segoe UI", 16),
+                      command=lambda c=client: self._open_commands(
+                          c)).pack(side="right", padx=(0, 8))
 
         for w in (card, icon, info):
             w.bind("<Double-Button-1>",
                    lambda e, c=client: self._connect(c["ip"], c["port"]))
+
+    # ===================================================================
+    # Commands (standard remote-admin actions on a PC)
+    # ===================================================================
+
+    def _open_commands(self, client):
+        win = ctk.CTkToplevel(self.root)
+        win.title("Commandes — %s" % client["name"])
+        win.geometry("420x440")
+        win.configure(fg_color=BG)
+        win.transient(self.root)
+        win.after(50, win.lift)
+
+        ctk.CTkLabel(win, text="⚡  Commandes", text_color=TEXT,
+                     font=("Segoe UI Semibold", 18)).pack(pady=(18, 2))
+        ctk.CTkLabel(win, text=client["name"], text_color=MUTED,
+                     font=("Segoe UI", 13)).pack(pady=(0, 12))
+
+        # --- Message popup ---
+        msg_card = ctk.CTkFrame(win, fg_color=CARD, corner_radius=14,
+                                border_width=1, border_color=BORDER)
+        msg_card.pack(fill="x", padx=18)
+        ctk.CTkLabel(msg_card, text="Envoyer un message", text_color=TEXT,
+                     font=("Segoe UI Semibold", 14)).pack(anchor="w",
+                                                          padx=14, pady=(12, 6))
+        title_entry = ctk.CTkEntry(msg_card, placeholder_text="Titre",
+                                   height=36, corner_radius=8, fg_color=BG,
+                                   border_color=BORDER, text_color=TEXT)
+        title_entry.pack(fill="x", padx=14, pady=4)
+        text_box = ctk.CTkTextbox(msg_card, height=70, corner_radius=8,
+                                  fg_color=BG, border_color=BORDER,
+                                  border_width=1, text_color=TEXT)
+        text_box.pack(fill="x", padx=14, pady=4)
+
+        def send_message():
+            cmd = {"cmd": "message",
+                   "title": title_entry.get() or "Message",
+                   "text": text_box.get("1.0", "end").strip()}
+            self._send_command(client, cmd, win,
+                               "Message envoyé à %s" % client["name"])
+
+        ctk.CTkButton(msg_card, text="Envoyer", height=38, corner_radius=10,
+                      fg_color=ACCENT, hover_color=ACCENT_HOVER,
+                      text_color="white", command=send_message).pack(
+            fill="x", padx=14, pady=(6, 14))
+
+        # --- Power actions ---
+        pow_card = ctk.CTkFrame(win, fg_color=CARD, corner_radius=14,
+                                border_width=1, border_color=BORDER)
+        pow_card.pack(fill="x", padx=18, pady=14)
+        ctk.CTkLabel(pow_card, text="Alimentation", text_color=TEXT,
+                     font=("Segoe UI Semibold", 14)).pack(anchor="w",
+                                                          padx=14, pady=(12, 6))
+        grid = ctk.CTkFrame(pow_card, fg_color="transparent")
+        grid.pack(fill="x", padx=10, pady=(0, 12))
+
+        actions = [("🔒 Verrouiller", "lock", False),
+                   ("🌙 Veille", "sleep", False),
+                   ("🔁 Redémarrer", "restart", True),
+                   ("⏻ Éteindre", "shutdown", True)]
+        for i, (label, kind, confirm) in enumerate(actions):
+            ctk.CTkButton(
+                grid, text=label, height=40, corner_radius=10,
+                fg_color=ACCENT if kind == "shutdown" else CARD_HOVER,
+                hover_color=ACCENT_HOVER if kind == "shutdown" else BORDER,
+                text_color="white" if kind == "shutdown" else TEXT,
+                command=lambda k=kind, l=label, c=confirm:
+                    self._power_action(client, k, l, c, win)).grid(
+                row=i // 2, column=i % 2, padx=6, pady=6, sticky="ew")
+        grid.grid_columnconfigure((0, 1), weight=1)
+
+    def _power_action(self, client, kind, label, confirm, win):
+        if confirm and not messagebox.askyesno(
+                "Confirmer", "%s sur « %s » ?" % (label, client["name"]),
+                parent=win):
+            return
+        self._send_command(client, {"cmd": kind}, win,
+                           "%s envoyé" % label)
+
+    def _send_command(self, client, cmd, win, ok_text):
+        ip, port = client["ip"], client["port"]
+        token = self.token_entry.get()
+        admin_name = self.admin_name
+
+        def work():
+            try:
+                sock = socket.create_connection((ip, port), timeout=8)
+                protocol.send_msg(sock, protocol.MSG_HELLO,
+                                  {"token": token, "admin": admin_name,
+                                   "mode": "command"})
+                msg_type, payload = protocol.recv_msg(sock)
+                if msg_type != protocol.MSG_WELCOME:
+                    reason = protocol.decode_json(payload).get("reason",
+                                                               "refusé")
+                    sock.close()
+                    self._events.put(("cmd_result", "Échec : %s" % reason))
+                    return
+                protocol.send_msg(sock, protocol.MSG_COMMAND, cmd)
+                protocol.send_msg(sock, protocol.MSG_BYE)
+                sock.close()
+                self._events.put(("cmd_result", ok_text))
+            except OSError as exc:
+                self._events.put(("cmd_result", "Échec : %s" % exc))
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _connect(self, ip, port):
         self.token = self.token_entry.get()
@@ -459,6 +570,9 @@ class AdminApp:
                     self._render_clients(value)
                 elif tag == "connect_failed":
                     self.status.configure(text=value)
+                elif tag == "cmd_result":
+                    if getattr(self, "on_connect_view", False):
+                        self.status.configure(text=value)
                 elif tag == "connected":
                     sock, info = value
                     self._start_session(sock, info)

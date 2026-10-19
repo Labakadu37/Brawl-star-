@@ -24,12 +24,13 @@ DEFAULT_TOKEN = "change-moi"
 
 # ---- Message types ----------------------------------------------------
 
-MSG_HELLO = 1        # admin  -> client : {"token": "...", "admin": "name"}
+MSG_HELLO = 1        # admin  -> client : {"token": "...", "admin", "mode"}
 MSG_WELCOME = 2      # client -> admin  : {"name": "...", "width": W, "height": H}
 MSG_DENIED = 3       # client -> admin  : {"reason": "..."}
 MSG_FRAME = 4        # client -> admin  : JPEG bytes
 MSG_INPUT = 5        # admin  -> client : {"kind": "...", ...}
 MSG_BYE = 6          # either way       : polite disconnect
+MSG_COMMAND = 7      # admin  -> client : {"cmd": "message|lock|sleep|...", ...}
 
 MAX_PAYLOAD = 32 * 1024 * 1024
 
