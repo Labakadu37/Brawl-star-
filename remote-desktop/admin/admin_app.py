@@ -5,7 +5,7 @@ clients that are running, and — once you pick one and it accepts the
 shared token — shows that screen live and forwards your mouse and
 keyboard to it.
 
-    pip install pillow
+    pip install customtkinter pillow
     python admin_app.py
 """
 
@@ -18,12 +18,27 @@ import socket
 import sys
 import threading
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from common import protocol
 
+import customtkinter as ctk
 from PIL import Image, ImageTk
+
+# ---- Dark theme palette (red used only as an accent) ------------------
+BG = "#0c0c0f"
+CARD = "#17171c"
+CARD_HOVER = "#20202a"
+BORDER = "#2c2c34"
+TEXT = "#eaeaef"
+MUTED = "#8b8b95"
+ACCENT = "#e0222f"
+ACCENT_HOVER = "#b11b25"
+GREEN = "#35c66b"
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
 
 def _config_path():
@@ -55,10 +70,11 @@ class AdminApp:
     def __init__(self, token, admin_name):
         self.token = token
         self.admin_name = admin_name
-        self.root = tk.Tk()
-        self.root.title("Remote Desktop — Admin")
-        self.root.geometry("980x640")
-        self.root.configure(bg="#7a0b0b")
+        self.root = ctk.CTk()
+        self.root.title("Remote Desktop")
+        self.root.geometry("1000x660")
+        self.root.minsize(820, 560)
+        self.root.configure(fg_color=BG)
 
         self.sock = None
         self.recv_thread = None
@@ -68,11 +84,12 @@ class AdminApp:
         self._latest = None            # most recent PIL Image (frame)
         self._latest_lock = threading.Lock()
         self._photo = None             # keep a ref so Tk does not GC it
-        self._draw_rect = (0, 0, 1, 1) # ox, oy, dw, dh for coord mapping
+        self._draw_rect = (0, 0, 1, 1)  # ox, oy, dw, dh for coord mapping
         self._frame_size = (1, 1)
         self._send_lock = threading.Lock()
         self._events = queue.Queue()   # worker -> GUI notifications
         self.remote_hosts = load_remote_hosts()   # saved VPN/Tailscale peers
+        self._card_widgets = []
 
         self._build_connect_view()
         self.root.after(80, self._pump_events)
@@ -82,52 +99,56 @@ class AdminApp:
     # ===================================================================
 
     def _build_connect_view(self):
-        self.connect_frame = tk.Frame(self.root, bg="#7a0b0b")
-        self.connect_frame.pack(fill="both", expand=True)
+        self.connect_frame = ctk.CTkFrame(self.root, fg_color=BG,
+                                          corner_radius=0)
+        self.connect_frame.pack(fill="both", expand=True, padx=24, pady=20)
         f = self.connect_frame
 
-        tk.Label(f, text="Remote Desktop — Admin", bg="#7a0b0b", fg="white",
-                 font=("Helvetica", 22, "bold")).pack(pady=(26, 2))
-        tk.Label(f, text="PC détectés sur le réseau local", bg="#7a0b0b",
-                 fg="#ffd7d7", font=("Helvetica", 12)).pack(pady=(0, 12))
+        # Header: logo badge + title
+        header = ctk.CTkFrame(f, fg_color="transparent")
+        header.pack(fill="x", pady=(4, 18))
+        badge = ctk.CTkFrame(header, width=44, height=44, corner_radius=12,
+                             fg_color=ACCENT)
+        badge.pack(side="left")
+        badge.pack_propagate(False)
+        ctk.CTkLabel(badge, text="🖥", font=("Segoe UI Emoji", 20),
+                     text_color="white").pack(expand=True)
+        title_box = ctk.CTkFrame(header, fg_color="transparent")
+        title_box.pack(side="left", padx=14)
+        ctk.CTkLabel(title_box, text="Remote Desktop", text_color=TEXT,
+                     font=("Segoe UI Semibold", 22)).pack(anchor="w")
+        ctk.CTkLabel(title_box, text="Tes PC détectés sur le réseau",
+                     text_color=MUTED, font=("Segoe UI", 13)).pack(anchor="w")
 
-        list_card = tk.Frame(f, bg="white")
-        list_card.pack(padx=40, fill="x")
-        self.listbox = tk.Listbox(list_card, height=8, activestyle="none",
-                                  font=("Helvetica", 12), bd=0,
-                                  highlightthickness=0)
-        self.listbox.pack(side="left", fill="both", expand=True, padx=2, pady=2)
-        self.listbox.bind("<Double-Button-1>", lambda e: self._connect_selected())
-        sb = tk.Scrollbar(list_card, command=self.listbox.yview)
-        sb.pack(side="right", fill="y")
-        self.listbox.config(yscrollcommand=sb.set)
+        self.scan_btn = ctk.CTkButton(header, text="⟳  Rechercher",
+                                      width=130, height=38, corner_radius=10,
+                                      fg_color=CARD, hover_color=CARD_HOVER,
+                                      text_color=TEXT, command=self.scan)
+        self.scan_btn.pack(side="right")
 
-        btns = tk.Frame(f, bg="#7a0b0b")
-        btns.pack(pady=12)
-        self.scan_btn = tk.Button(btns, text="🔍 Rechercher", command=self.scan,
-                                  bg="white", fg="#7a0b0b", relief="flat",
-                                  font=("Helvetica", 11, "bold"),
-                                  padx=14, pady=6)
-        self.scan_btn.grid(row=0, column=0, padx=6)
-        tk.Button(btns, text="Se connecter", command=self._connect_selected,
-                  bg="#ffd7d7", fg="#7a0b0b", relief="flat",
-                  font=("Helvetica", 11, "bold"),
-                  padx=14, pady=6).grid(row=0, column=1, padx=6)
-        tk.Button(btns, text="➕ PC distant", command=self._add_remote_host,
-                  bg="#4a0606", fg="white", relief="flat",
-                  font=("Helvetica", 10), padx=10,
-                  pady=6).grid(row=0, column=2, padx=6)
+        # Scrollable list of device cards
+        self.list_frame = ctk.CTkScrollableFrame(f, fg_color="transparent")
+        self.list_frame.pack(fill="both", expand=True)
 
-        tok = tk.Frame(f, bg="#7a0b0b")
-        tok.pack(pady=14)
-        tk.Label(tok, text="Clé partagée :", bg="#7a0b0b", fg="white").pack(
-            side="left")
-        self.token_entry = tk.Entry(tok, width=24, show="•")
+        # Bottom toolbar
+        bottom = ctk.CTkFrame(f, fg_color="transparent")
+        bottom.pack(fill="x", pady=(14, 0))
+        ctk.CTkButton(bottom, text="＋  PC distant", width=130, height=38,
+                      corner_radius=10, fg_color=CARD, hover_color=CARD_HOVER,
+                      text_color=TEXT,
+                      command=self._add_remote_host).pack(side="left")
+        ctk.CTkLabel(bottom, text="Clé", text_color=MUTED,
+                     font=("Segoe UI", 13)).pack(side="left", padx=(16, 6))
+        self.token_entry = ctk.CTkEntry(bottom, width=180, height=38,
+                                        corner_radius=10, show="•",
+                                        fg_color=CARD, border_color=BORDER,
+                                        text_color=TEXT)
         self.token_entry.insert(0, self.token)
-        self.token_entry.pack(side="left", padx=6)
+        self.token_entry.pack(side="left")
+        self.status = ctk.CTkLabel(bottom, text="", text_color=MUTED,
+                                   font=("Segoe UI", 13))
+        self.status.pack(side="right")
 
-        self.status = tk.Label(f, text="", bg="#7a0b0b", fg="#ffd7d7")
-        self.status.pack()
         self._clients = []
         self.on_connect_view = True
         self._scanning = False
@@ -146,9 +167,9 @@ class AdminApp:
         if self._scanning:
             return
         self._scanning = True
-        self.scan_btn.config(state="disabled")
+        self.scan_btn.configure(state="disabled")
         if not self._clients:
-            self.status.config(text="Recherche en cours…")
+            self.status.configure(text="Recherche…")
 
         hosts = list(self.remote_hosts)
 
@@ -159,53 +180,86 @@ class AdminApp:
         threading.Thread(target=work, daemon=True).start()
 
     def _add_remote_host(self):
-        host = simpledialog.askstring(
-            "Appairer un PC distant",
-            "Adresse du PC distant (nom ou IP Tailscale/VPN).\n"
-            "À saisir une seule fois — il apparaîtra ensuite tout seul :",
-            parent=self.root)
+        dialog = ctk.CTkInputDialog(
+            title="Appairer un PC distant",
+            text="Adresse du PC distant (nom ou IP Tailscale/VPN).\n"
+                 "À saisir une seule fois :")
+        host = dialog.get_input()
         if not host:
             return
         host = host.strip()
         if host and host not in self.remote_hosts:
             self.remote_hosts.append(host)
             save_remote_hosts(self.remote_hosts)
-            self.status.config(text="PC distant ajouté : %s" % host)
+            self.status.configure(text="PC distant ajouté")
             self.scan()
 
     def _render_clients(self, clients):
         self._scanning = False
         if not getattr(self, "on_connect_view", False):
             return
-        # Preserve the current selection across auto-refreshes.
-        sel = self.listbox.curselection()
-        selected_name = self._clients[sel[0]]["name"] if sel else None
         self._clients = clients
-        self.listbox.delete(0, tk.END)
-        for c in clients:
-            self.listbox.insert(tk.END, "   💻   %s" % c["name"])
-        if selected_name:
-            for i, c in enumerate(clients):
-                if c["name"] == selected_name:
-                    self.listbox.selection_set(i)
-                    break
-        self.scan_btn.config(state="normal")
-        self.status.config(text="%d PC disponible(s) — double-clique pour "
-                           "contrôler." % len(clients) if clients
-                           else "Aucun PC trouvé. Lance l'app client sur "
-                           "l'autre PC (même réseau Wi-Fi).")
+        for w in self._card_widgets:
+            w.destroy()
+        self._card_widgets = []
 
-    def _connect_selected(self):
-        sel = self.listbox.curselection()
-        if not sel:
-            self.status.config(text="Sélectionne un PC dans la liste.")
-            return
-        c = self._clients[sel[0]]
-        self._connect(c["ip"], c["port"])
+        if not clients:
+            empty = ctk.CTkFrame(self.list_frame, fg_color="transparent")
+            empty.pack(fill="both", expand=True, pady=40)
+            self._card_widgets.append(empty)
+            ctk.CTkLabel(empty, text="🖥", font=("Segoe UI Emoji", 40),
+                         text_color=MUTED).pack()
+            ctk.CTkLabel(empty, text="Aucun PC trouvé",
+                         text_color=TEXT,
+                         font=("Segoe UI Semibold", 15)).pack(pady=(8, 2))
+            ctk.CTkLabel(empty, text="Lance l'app client sur l'autre PC "
+                         "(même réseau).", text_color=MUTED,
+                         font=("Segoe UI", 12)).pack()
+        else:
+            for c in clients:
+                self._make_card(c)
+
+        self.scan_btn.configure(state="normal")
+        self.status.configure(text="%d PC disponible(s)" % len(clients)
+                              if clients else "")
+
+    def _make_card(self, client):
+        card = ctk.CTkFrame(self.list_frame, fg_color=CARD, corner_radius=14,
+                            border_width=1, border_color=BORDER, height=74)
+        card.pack(fill="x", pady=6)
+        card.pack_propagate(False)
+        self._card_widgets.append(card)
+
+        icon = ctk.CTkLabel(card, text="🖥", font=("Segoe UI Emoji", 24),
+                            text_color=TEXT, width=56)
+        icon.pack(side="left", padx=(16, 4))
+
+        info = ctk.CTkFrame(card, fg_color="transparent")
+        info.pack(side="left", fill="y", expand=True, pady=14)
+        ctk.CTkLabel(info, text=client["name"], text_color=TEXT,
+                     font=("Segoe UI Semibold", 16),
+                     anchor="w").pack(anchor="w")
+        dot = ctk.CTkFrame(info, fg_color="transparent")
+        dot.pack(anchor="w", pady=(2, 0))
+        ctk.CTkLabel(dot, text="●", text_color=GREEN,
+                     font=("Segoe UI", 11)).pack(side="left")
+        ctk.CTkLabel(dot, text=" En ligne", text_color=MUTED,
+                     font=("Segoe UI", 12)).pack(side="left")
+
+        ctk.CTkButton(card, text="Contrôler", width=118, height=40,
+                      corner_radius=10, fg_color=ACCENT,
+                      hover_color=ACCENT_HOVER, text_color="white",
+                      font=("Segoe UI Semibold", 14),
+                      command=lambda c=client: self._connect(
+                          c["ip"], c["port"])).pack(side="right", padx=16)
+
+        for w in (card, icon, info):
+            w.bind("<Double-Button-1>",
+                   lambda e, c=client: self._connect(c["ip"], c["port"]))
 
     def _connect(self, ip, port):
         self.token = self.token_entry.get()
-        self.status.config(text="Connexion…")
+        self.status.configure(text="Connexion…")
 
         def work():
             try:
@@ -242,22 +296,27 @@ class AdminApp:
         self.connect_frame.destroy()
         self._frame_size = (info.get("width", 1), info.get("height", 1))
 
-        self.view_frame = tk.Frame(self.root, bg="black")
+        self.view_frame = ctk.CTkFrame(self.root, fg_color="#000000",
+                                       corner_radius=0)
         self.view_frame.pack(fill="both", expand=True)
 
-        bar = tk.Frame(self.view_frame, bg="#2b2b2b")
+        bar = ctk.CTkFrame(self.view_frame, fg_color="#141418",
+                           corner_radius=0, height=48)
         bar.pack(fill="x")
-        tk.Label(bar, text="  %s  —  %dx%d" % (info.get("name", "?"),
-                 self._frame_size[0], self._frame_size[1]),
-                 bg="#2b2b2b", fg="white",
-                 font=("Helvetica", 11, "bold")).pack(side="left", pady=4)
-        tk.Checkbutton(bar, text="Contrôle actif", variable=self.control_enabled,
-                       bg="#2b2b2b", fg="white", selectcolor="#2b2b2b",
-                       activebackground="#2b2b2b", activeforeground="white").pack(
-            side="left", padx=12)
-        tk.Button(bar, text="Déconnecter", command=self._disconnect,
-                  bg="#7a0b0b", fg="white", relief="flat",
-                  padx=10).pack(side="right", padx=6, pady=3)
+        bar.pack_propagate(False)
+        ctk.CTkLabel(bar, text="  🖥  %s   ·   %d×%d" % (info.get("name", "?"),
+                     self._frame_size[0], self._frame_size[1]),
+                     text_color=TEXT,
+                     font=("Segoe UI Semibold", 13)).pack(side="left", padx=8)
+        ctk.CTkButton(bar, text="Déconnecter", width=120, height=32,
+                      corner_radius=8, fg_color=ACCENT,
+                      hover_color=ACCENT_HOVER, text_color="white",
+                      command=self._disconnect).pack(side="right", padx=10)
+        self.control_switch = ctk.CTkSwitch(bar, text="Contrôle actif",
+                                            variable=self.control_enabled,
+                                            progress_color=ACCENT,
+                                            text_color=TEXT)
+        self.control_switch.pack(side="right", padx=12)
 
         self.canvas = tk.Canvas(self.view_frame, bg="black",
                                 highlightthickness=0, cursor="tcross")
@@ -399,7 +458,7 @@ class AdminApp:
                 if tag == "scan_done":
                     self._render_clients(value)
                 elif tag == "connect_failed":
-                    self.status.config(text=value)
+                    self.status.configure(text=value)
                 elif tag == "connected":
                     sock, info = value
                     self._start_session(sock, info)

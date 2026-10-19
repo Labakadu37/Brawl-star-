@@ -55,6 +55,7 @@ def build(key):
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
            "--onefile", "--noconsole", "--name", t["name"],
            "--paths", ROOT,                       # so `common` is importable
+           "--collect-all", "customtkinter",      # bundle its themes/assets
            "--distpath", os.path.join(HERE, "dist"),
            "--workpath", os.path.join(HERE, "work"),
            "--specpath", os.path.join(HERE, "work")]

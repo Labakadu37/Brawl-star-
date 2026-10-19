@@ -6,7 +6,7 @@ be stopped with one click. An admin on the same local network discovers
 it automatically (no code to type) and, after presenting the shared
 token, can see this screen and move the mouse / type.
 
-    pip install mss pillow pynput
+    pip install mss pillow pynput pystray customtkinter
     python client_app.py
 """
 
@@ -24,6 +24,21 @@ from tkinter import messagebox
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from common import protocol
 from common.keymap import build_special_keys
+
+import customtkinter as ctk
+
+# ---- Dark theme palette (red used only as an accent) ------------------
+BG = "#0c0c0f"
+CARD = "#17171c"
+CARD_HOVER = "#20202a"
+BORDER = "#2c2c34"
+TEXT = "#eaeaef"
+MUTED = "#8b8b95"
+ACCENT = "#e0222f"
+ACCENT_HOVER = "#b11b25"
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
 # Defaults tuned for a local network: native resolution, crisp JPEG.
 FPS = 20
@@ -335,51 +350,58 @@ class ClientGUI:
         self.ui = service.ui
         self.tray = None
         self._status_text = "En attente d'un admin"
-        self.root = tk.Tk()
-        self.root.title("Remote Desktop — Client (cet écran est partageable)")
-        self.root.geometry("460x360")
-        self.root.configure(bg="#7a0b0b")
+        self.root = ctk.CTk()
+        self.root.title("Remote Desktop — Client")
+        self.root.geometry("440x430")
+        self.root.configure(fg_color=BG)
 
-        tk.Label(self.root, text="PARTAGE D'ÉCRAN", bg="#7a0b0b",
-                 fg="white", font=("Helvetica", 20, "bold")).pack(pady=(18, 2))
-        self.state_lbl = tk.Label(self.root, text="● En attente d'un admin",
-                                  bg="#7a0b0b", fg="#ffd7d7",
-                                  font=("Helvetica", 12, "bold"))
-        self.state_lbl.pack(pady=(0, 10))
+        badge = ctk.CTkFrame(self.root, width=54, height=54, corner_radius=15,
+                             fg_color=ACCENT)
+        badge.pack(pady=(22, 6))
+        badge.pack_propagate(False)
+        ctk.CTkLabel(badge, text="🖥", font=("Segoe UI Emoji", 24),
+                     text_color="white").pack(expand=True)
 
-        card = tk.Frame(self.root, bg="#fdecec", bd=0)
-        card.pack(fill="x", padx=18)
+        ctk.CTkLabel(self.root, text="Partage d'écran", text_color=TEXT,
+                     font=("Segoe UI Semibold", 20)).pack()
+        self.state_lbl = ctk.CTkLabel(self.root, text="● En attente d'un admin",
+                                      text_color=MUTED,
+                                      font=("Segoe UI Semibold", 13))
+        self.state_lbl.pack(pady=(2, 14))
+
+        card = ctk.CTkFrame(self.root, fg_color=CARD, corner_radius=14,
+                            border_width=1, border_color=BORDER)
+        card.pack(fill="x", padx=22)
         for label, value in info:
-            row = tk.Frame(card, bg="#fdecec")
-            row.pack(fill="x", padx=12, pady=2)
-            tk.Label(row, text=label, bg="#fdecec", fg="#7a0b0b",
-                     width=16, anchor="w",
-                     font=("Helvetica", 10, "bold")).pack(side="left")
-            tk.Label(row, text=value, bg="#fdecec", fg="#333",
-                     anchor="w", font=("Helvetica", 10)).pack(side="left")
+            row = ctk.CTkFrame(card, fg_color="transparent")
+            row.pack(fill="x", padx=14, pady=4)
+            ctk.CTkLabel(row, text=label, text_color=MUTED, width=130,
+                         anchor="w", font=("Segoe UI", 12)).pack(side="left")
+            ctk.CTkLabel(row, text=str(value), text_color=TEXT, anchor="w",
+                         font=("Segoe UI Semibold", 12)).pack(side="left")
 
-        self.detail_lbl = tk.Label(self.root, text="", bg="#7a0b0b",
-                                   fg="white", font=("Helvetica", 10))
-        self.detail_lbl.pack(pady=8)
+        self.detail_lbl = ctk.CTkLabel(self.root, text="", text_color=MUTED,
+                                       font=("Segoe UI", 11))
+        self.detail_lbl.pack(pady=10)
 
         if sys.platform.startswith("win"):
             self.autostart_var = tk.BooleanVar(value=self._autostart_enabled())
-            tk.Checkbutton(self.root, text="Démarrer automatiquement avec "
-                           "Windows", variable=self.autostart_var,
-                           command=self._toggle_autostart, bg="#7a0b0b",
-                           fg="white", selectcolor="#4a0606",
-                           activebackground="#7a0b0b",
-                           activeforeground="white").pack(pady=(0, 4))
+            ctk.CTkSwitch(self.root, text="Démarrer avec Windows",
+                          variable=self.autostart_var,
+                          command=self._toggle_autostart,
+                          progress_color=ACCENT,
+                          text_color=TEXT).pack(pady=(0, 12))
 
-        self.stop_btn = tk.Button(self.root, text="Déconnecter l'admin",
-                                  command=self.service.kick, state="disabled",
-                                  bg="white", fg="#7a0b0b",
-                                  font=("Helvetica", 11, "bold"), relief="flat",
-                                  padx=14, pady=6)
-        self.stop_btn.pack(pady=(4, 2))
-        tk.Button(self.root, text="Arrêter le partage et quitter",
-                  command=self._on_close, bg="#4a0606", fg="white",
-                  relief="flat", padx=10, pady=4).pack()
+        self.stop_btn = ctk.CTkButton(self.root, text="Déconnecter l'admin",
+                                      command=self.service.kick,
+                                      state="disabled", fg_color=CARD,
+                                      hover_color=CARD_HOVER, text_color=TEXT,
+                                      corner_radius=10, height=38)
+        self.stop_btn.pack(pady=(0, 8))
+        ctk.CTkButton(self.root, text="Arrêter le partage et quitter",
+                      command=self._on_close, fg_color=ACCENT,
+                      hover_color=ACCENT_HOVER, text_color="white",
+                      corner_radius=10, height=38).pack()
 
         tray_ok = self._build_tray() if tray else False
         if tray_ok:
@@ -459,7 +481,7 @@ class ClientGUI:
             else:
                 autostart.enable()
         except Exception as exc:
-            self.detail_lbl.config(text="Démarrage auto: %s" % exc)
+            self.detail_lbl.configure(text="Démarrage auto: %s" % exc)
         if hasattr(self, "autostart_var"):
             self.autostart_var.set(self._autostart_enabled())
         if self.tray is not None:
@@ -478,19 +500,20 @@ class ClientGUI:
 
     def _handle(self, tag, value):
         if tag == "listening":
-            self._set_status("En attente d'un admin", "#ffd7d7")
+            self._set_status("En attente d'un admin", MUTED)
         elif tag == "connected":
-            self.state_lbl.config(text="● CONTRÔLÉ À DISTANCE", fg="#fff2a8")
-            self.detail_lbl.config(text="Admin connecté : %s" % value)
-            self.stop_btn.config(state="normal")
+            self.state_lbl.configure(text="● CONTRÔLÉ À DISTANCE",
+                                     text_color="#f5c451")
+            self.detail_lbl.configure(text="Admin connecté : %s" % value)
+            self.stop_btn.configure(state="normal")
             self._status_text = "Contrôlé par %s" % value
             self._notify("Contrôle à distance actif", str(value))
         elif tag == "disconnected":
-            self._set_status("En attente d'un admin", "#ffd7d7")
-            self.detail_lbl.config(text="")
-            self.stop_btn.config(state="disabled")
+            self._set_status("En attente d'un admin", MUTED)
+            self.detail_lbl.configure(text="")
+            self.stop_btn.configure(state="disabled")
         elif tag == "status":
-            self.detail_lbl.config(text=value)
+            self.detail_lbl.configure(text=value)
         elif tag == "approval":
             admin_name, ip, result, done = value
             self._show_window()
@@ -505,7 +528,7 @@ class ClientGUI:
             self._on_close()
 
     def _set_status(self, text, color):
-        self.state_lbl.config(text="● " + text, fg=color)
+        self.state_lbl.configure(text="● " + text, text_color=color)
         self._status_text = text
         if self.tray is not None:
             self.tray.update_menu()
