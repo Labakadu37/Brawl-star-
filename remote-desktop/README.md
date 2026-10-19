@@ -54,6 +54,27 @@ pip install -r requirements.txt
 python admin_app.py
 ```
 
+## Créer des exécutables `.exe` (Windows)
+
+Pour obtenir `RemoteClient.exe` et `RemoteAdmin.exe` autonomes (aucun
+Python requis pour les lancer ensuite) :
+
+1. Sur un PC **Windows** avec Python 3.9+ installé
+   ([python.org](https://www.python.org/downloads/), coche *Add Python to
+   PATH*).
+2. Ouvre le dossier `remote-desktop\packaging` et **double-clique sur
+   `build_windows.bat`**.
+3. Récupère les deux fichiers dans `remote-desktop\packaging\dist\` :
+   - `RemoteClient.exe` → à copier sur le PC à contrôler
+   - `RemoteAdmin.exe`  → à lancer sur le PC qui contrôle
+
+> PyInstaller ne fait pas de compilation croisée : un `.exe` Windows doit
+> être construit **sur Windows**. Sur Linux/macOS, le même script
+> (`python build.py`) produit l'exécutable natif de cet OS.
+
+Les `.exe` acceptent les mêmes options que les scripts, par ex. :
+`RemoteClient.exe --name "PC-Salon" --token ma-cle --ask`.
+
 ## Déroulé
 
 1. Sur le PC à contrôler : lance `client_app.py`. Une fenêtre rouge
