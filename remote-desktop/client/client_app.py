@@ -330,14 +330,15 @@ class ScreenShareService:
 
 
 class ClientGUI:
-    def __init__(self, service, info):
+    def __init__(self, service, info, tray=True):
         self.service = service
         self.ui = service.ui
+        self.tray = None
+        self._status_text = "En attente d'un admin"
         self.root = tk.Tk()
         self.root.title("Remote Desktop — Client (cet écran est partageable)")
-        self.root.geometry("460x320")
+        self.root.geometry("460x360")
         self.root.configure(bg="#7a0b0b")
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         tk.Label(self.root, text="PARTAGE D'ÉCRAN", bg="#7a0b0b",
                  fg="white", font=("Helvetica", 20, "bold")).pack(pady=(18, 2))
@@ -361,6 +362,15 @@ class ClientGUI:
                                    fg="white", font=("Helvetica", 10))
         self.detail_lbl.pack(pady=8)
 
+        if sys.platform.startswith("win"):
+            self.autostart_var = tk.BooleanVar(value=self._autostart_enabled())
+            tk.Checkbutton(self.root, text="Démarrer automatiquement avec "
+                           "Windows", variable=self.autostart_var,
+                           command=self._toggle_autostart, bg="#7a0b0b",
+                           fg="white", selectcolor="#4a0606",
+                           activebackground="#7a0b0b",
+                           activeforeground="white").pack(pady=(0, 4))
+
         self.stop_btn = tk.Button(self.root, text="Déconnecter l'admin",
                                   command=self.service.kick, state="disabled",
                                   bg="white", fg="#7a0b0b",
@@ -371,7 +381,91 @@ class ClientGUI:
                   command=self._on_close, bg="#4a0606", fg="white",
                   relief="flat", padx=10, pady=4).pack()
 
+        tray_ok = self._build_tray() if tray else False
+        if tray_ok:
+            # Live in the tray: the window just hides when closed, and we
+            # start hidden so nothing pops up on login.
+            self.root.protocol("WM_DELETE_WINDOW", self._hide_window)
+            self.root.withdraw()
+        else:
+            self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
         self.root.after(80, self._pump)
+
+    # -- tray ------------------------------------------------------------
+
+    def _build_tray(self):
+        try:
+            import pystray
+            from PIL import Image, ImageDraw
+        except Exception:
+            return False
+
+        icon_img = Image.new("RGB", (64, 64), "#7a0b0b")
+        d = ImageDraw.Draw(icon_img)
+        d.rectangle([12, 16, 52, 44], outline="white", width=4)
+        d.rectangle([26, 46, 38, 52], fill="white")
+
+        menu = pystray.Menu(
+            pystray.MenuItem(lambda item: self._status_text, None,
+                             enabled=False),
+            pystray.MenuItem("Ouvrir la fenêtre", self._tray_open,
+                             default=True),
+            pystray.MenuItem("Démarrer avec Windows",
+                             self._tray_toggle_autostart,
+                             checked=lambda item: self._autostart_enabled()),
+            pystray.MenuItem("Déconnecter l'admin",
+                             lambda: self.service.kick()),
+            pystray.MenuItem("Quitter le partage", self._tray_quit),
+        )
+        self.tray = pystray.Icon("remote-desktop", icon_img,
+                                 "Remote Desktop — partage d'écran", menu)
+        threading.Thread(target=self.tray.run, daemon=True).start()
+        return True
+
+    def _tray_open(self):
+        self.root.after(0, self._show_window)
+
+    def _tray_quit(self):
+        self.root.after(0, self._on_close)
+
+    def _tray_toggle_autostart(self):
+        self.root.after(0, self._toggle_autostart)
+
+    def _show_window(self):
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+
+    def _hide_window(self):
+        self.root.withdraw()
+
+    # -- autostart -------------------------------------------------------
+
+    def _autostart_enabled(self):
+        if not sys.platform.startswith("win"):
+            return False
+        try:
+            from common import autostart
+            return autostart.is_enabled()
+        except Exception:
+            return False
+
+    def _toggle_autostart(self):
+        try:
+            from common import autostart
+            if autostart.is_enabled():
+                autostart.disable()
+            else:
+                autostart.enable()
+        except Exception as exc:
+            self.detail_lbl.config(text="Démarrage auto: %s" % exc)
+        if hasattr(self, "autostart_var"):
+            self.autostart_var.set(self._autostart_enabled())
+        if self.tray is not None:
+            self.tray.update_menu()
+
+    # -- event pump ------------------------------------------------------
 
     def _pump(self):
         try:
@@ -384,32 +478,52 @@ class ClientGUI:
 
     def _handle(self, tag, value):
         if tag == "listening":
-            self.state_lbl.config(text="● En attente d'un admin")
+            self._set_status("En attente d'un admin", "#ffd7d7")
         elif tag == "connected":
-            self.state_lbl.config(text="● CONTRÔLÉ À DISTANCE",
-                                  fg="#fff2a8")
+            self.state_lbl.config(text="● CONTRÔLÉ À DISTANCE", fg="#fff2a8")
             self.detail_lbl.config(text="Admin connecté : %s" % value)
             self.stop_btn.config(state="normal")
+            self._status_text = "Contrôlé par %s" % value
+            self._notify("Contrôle à distance actif", str(value))
         elif tag == "disconnected":
-            self.state_lbl.config(text="● En attente d'un admin", fg="#ffd7d7")
+            self._set_status("En attente d'un admin", "#ffd7d7")
             self.detail_lbl.config(text="")
             self.stop_btn.config(state="disabled")
         elif tag == "status":
             self.detail_lbl.config(text=value)
         elif tag == "approval":
             admin_name, ip, result, done = value
+            self._show_window()
             ok = messagebox.askyesno(
                 "Autoriser le contrôle à distance ?",
                 "« %s » (%s) demande à contrôler cet ordinateur.\n\n"
-                "Autoriser ?" % (admin_name, ip))
+                "Autoriser ?" % (admin_name, ip), parent=self.root)
             result["ok"] = ok
             done.set()
         elif tag == "fatal":
             messagebox.showerror("Erreur", value)
             self._on_close()
 
+    def _set_status(self, text, color):
+        self.state_lbl.config(text="● " + text, fg=color)
+        self._status_text = text
+        if self.tray is not None:
+            self.tray.update_menu()
+
+    def _notify(self, title, message):
+        if self.tray is not None:
+            try:
+                self.tray.notify(message, title)
+            except Exception:
+                pass
+
     def _on_close(self):
         self.service.stop()
+        if self.tray is not None:
+            try:
+                self.tray.stop()
+            except Exception:
+                pass
         self.root.destroy()
 
     def run(self):
@@ -432,7 +546,25 @@ def main():
                     help="qualité JPEG 1-95 (défaut %d)" % JPEG_QUALITY)
     ap.add_argument("--max-width", type=int, default=MAX_WIDTH,
                     help="réduire au-delà de cette largeur (0 = jamais)")
+    ap.add_argument("--tray", action="store_true",
+                    help="démarrer réduit dans la zone de notification")
+    ap.add_argument("--window", action="store_true",
+                    help="forcer la grande fenêtre (pas de tray)")
+    ap.add_argument("--install-autostart", action="store_true",
+                    help="(Windows) lancer le client à l'ouverture de session")
+    ap.add_argument("--remove-autostart", action="store_true",
+                    help="(Windows) retirer le démarrage automatique")
     args = ap.parse_args()
+
+    if args.install_autostart or args.remove_autostart:
+        from common import autostart
+        if args.install_autostart:
+            autostart.enable()
+            print("Démarrage automatique activé.")
+        else:
+            autostart.disable()
+            print("Démarrage automatique désactivé.")
+        return
 
     set_dpi_aware()
 
@@ -443,12 +575,12 @@ def main():
                                  max_width=args.max_width)
     info = [
         ("Nom de ce PC", args.name),
-        ("Adresse IP", protocol.local_ip()),
+        ("Adresse (IP/VPN)", protocol.local_ip()),
         ("Port", str(args.port)),
         ("Confirmation", "à chaque connexion" if args.ask else "automatique"),
     ]
     service.start()
-    ClientGUI(service, info).run()
+    ClientGUI(service, info, tray=not args.window).run()
 
 
 if __name__ == "__main__":

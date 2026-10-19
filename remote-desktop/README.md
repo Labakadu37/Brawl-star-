@@ -21,12 +21,13 @@ remote-desktop/
 ## Utilisation consentie uniquement
 
 Cet outil est fait pour **tes machines** ou des machines pour lesquelles tu
-as l'**autorisation explicite** du propriétaire. Il est **volontairement
-visible** : l'app client affiche en permanence une fenêtre « Partage
-d'écran » avec un bouton pour couper, et une **clé partagée** empêche
-n'importe qui sur le réseau de se connecter. Ne le transforme pas en outil
-caché : contrôler l'ordinateur de quelqu'un à son insu est illégal dans la
-plupart des pays.
+as l'**autorisation explicite** du propriétaire. Le client reste
+**découvrable** : même réduit, il garde une **icône dans la zone de
+notification** (comme TeamViewer / RustDesk) pour que la personne devant le
+PC puisse toujours le voir et l'arrêter, et une **clé partagée** empêche
+n'importe qui de se connecter. C'est volontaire et à conserver : un outil
+de contrôle **totalement invisible** que l'utilisateur ne peut ni voir ni
+arrêter est un logiciel espion, illégal dans la plupart des pays.
 
 ## Installation
 
@@ -118,6 +119,47 @@ python admin_app.py --token ma-cle --name "Mon-Portable"
 - `--quality` : netteté JPEG 1–95 (défaut 85).
 - `--max-width` : `0` = résolution native (défaut). Mets p. ex. `1280`
   pour réduire la bande passante sur un réseau lent.
+
+## Accès sans surveillance (icône tray + démarrage auto)
+
+Pour contrôler un PC **sans avoir à ouvrir l'app** à chaque fois :
+
+1. Sur le PC à contrôler, lance le client une fois. Il démarre **réduit
+   dans la zone de notification** (petite icône en bas à droite) — pas de
+   grande fenêtre. Clic droit sur l'icône pour l'ouvrir, le déconnecter ou
+   le quitter.
+2. Active **« Démarrer automatiquement avec Windows »** (case dans la
+   fenêtre, ou clic droit sur l'icône tray). Il se relancera tout seul à
+   chaque ouverture de session, réduit dans le tray.
+
+En ligne de commande :
+
+```bash
+RemoteClient.exe --install-autostart     # activer le démarrage auto
+RemoteClient.exe --remove-autostart      # le retirer
+RemoteClient.exe --window                # forcer la grande fenêtre
+```
+
+> L'entrée de démarrage est **visible** dans *Gestionnaire des tâches →
+> Démarrage* et l'icône tray reste affichée : c'est un accès non
+> surveillé, pas une installation cachée.
+
+## Contrôler un PC hors du réseau (Internet)
+
+La découverte automatique ne marche que sur un **même réseau**. Pour
+atteindre un PC ailleurs (ex. depuis l'hôpital), le plus simple et le plus
+sûr est **[Tailscale](https://tailscale.com)** (gratuit, chiffré, aucune
+config de routeur) :
+
+1. Installe Tailscale sur **les deux PC** et connecte-les au même compte.
+   Chaque PC reçoit une adresse stable (ex. `100.x.y.z`).
+2. Sur le PC client, note cette adresse (ou son nom Tailscale).
+3. Dans l'app admin, clique **« ➕ PC distant »** et entre cette adresse
+   **une seule fois**. Le PC apparaît alors dans la liste comme un PC local
+   — double-clique pour le contrôler. L'adresse est mémorisée.
+
+> Évite d'exposer directement le port sur Internet (redirection de port) :
+> le flux n'est pas chiffré. Tailscale/VPN chiffre tout de bout en bout.
 
 ## Contrôle (souris / clavier)
 

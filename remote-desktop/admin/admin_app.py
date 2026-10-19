@@ -11,18 +11,44 @@ keyboard to it.
 
 import argparse
 import io
+import json
 import os
 import queue
 import socket
 import sys
 import threading
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, simpledialog
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from common import protocol
 
 from PIL import Image, ImageTk
+
+
+def _config_path():
+    base = (os.environ.get("APPDATA")
+            or os.path.join(os.path.expanduser("~"), ".config"))
+    folder = os.path.join(base, "remote-desktop")
+    os.makedirs(folder, exist_ok=True)
+    return os.path.join(folder, "remote_hosts.json")
+
+
+def load_remote_hosts():
+    try:
+        with open(_config_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return [str(h) for h in data] if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def save_remote_hosts(hosts):
+    try:
+        with open(_config_path(), "w", encoding="utf-8") as fh:
+            json.dump(hosts, fh)
+    except OSError:
+        pass
 
 
 class AdminApp:
@@ -46,6 +72,7 @@ class AdminApp:
         self._frame_size = (1, 1)
         self._send_lock = threading.Lock()
         self._events = queue.Queue()   # worker -> GUI notifications
+        self.remote_hosts = load_remote_hosts()   # saved VPN/Tailscale peers
 
         self._build_connect_view()
         self.root.after(80, self._pump_events)
@@ -86,6 +113,10 @@ class AdminApp:
                   bg="#ffd7d7", fg="#7a0b0b", relief="flat",
                   font=("Helvetica", 11, "bold"),
                   padx=14, pady=6).grid(row=0, column=1, padx=6)
+        tk.Button(btns, text="➕ PC distant", command=self._add_remote_host,
+                  bg="#4a0606", fg="white", relief="flat",
+                  font=("Helvetica", 10), padx=10,
+                  pady=6).grid(row=0, column=2, padx=6)
 
         tok = tk.Frame(f, bg="#7a0b0b")
         tok.pack(pady=14)
@@ -119,11 +150,28 @@ class AdminApp:
         if not self._clients:
             self.status.config(text="Recherche en cours…")
 
+        hosts = list(self.remote_hosts)
+
         def work():
-            clients = protocol.discover_clients(timeout=1.2)
+            clients = protocol.discover_clients(timeout=1.2, extra_hosts=hosts)
             self._events.put(("scan_done", clients))
 
         threading.Thread(target=work, daemon=True).start()
+
+    def _add_remote_host(self):
+        host = simpledialog.askstring(
+            "Appairer un PC distant",
+            "Adresse du PC distant (nom ou IP Tailscale/VPN).\n"
+            "À saisir une seule fois — il apparaîtra ensuite tout seul :",
+            parent=self.root)
+        if not host:
+            return
+        host = host.strip()
+        if host and host not in self.remote_hosts:
+            self.remote_hosts.append(host)
+            save_remote_hosts(self.remote_hosts)
+            self.status.config(text="PC distant ajouté : %s" % host)
+            self.scan()
 
     def _render_clients(self, clients):
         self._scanning = False

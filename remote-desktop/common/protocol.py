@@ -100,8 +100,13 @@ def discovery_responder(name, tcp_port, stop_event):
         s.close()
 
 
-def discover_clients(timeout=1.5):
-    """Admin side: broadcast once, return [{"name", "ip", "port"}, ...]."""
+def discover_clients(timeout=1.5, extra_hosts=None):
+    """Admin side: probe the LAN (and any saved remote hosts) for clients.
+
+    extra_hosts is a list of hostnames/IPs to probe directly by unicast —
+    used for PCs reached over a VPN like Tailscale, where UDP broadcast
+    does not travel. Returns [{"name", "ip", "port"}, ...].
+    """
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     s.settimeout(0.3)
@@ -115,9 +120,20 @@ def discover_clients(timeout=1.5):
     if ip.count(".") == 3 and not ip.startswith("127."):
         targets.add(ip.rsplit(".", 1)[0] + ".255")
 
+    # Saved remote PCs (e.g. Tailscale peers) are probed directly.
+    unicast = set()
+    for host in (extra_hosts or []):
+        host = host.strip()
+        if not host:
+            continue
+        try:
+            unicast.add(socket.gethostbyname(host))
+        except OSError:
+            pass
+
     try:
         magic = DISCOVERY_MAGIC.encode("utf-8")
-        for target in targets:
+        for target in targets | unicast:
             try:
                 s.sendto(magic, (target, DISCOVERY_PORT))
             except OSError:

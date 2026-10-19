@@ -25,7 +25,7 @@ ROOT = os.path.dirname(HERE)              # the remote-desktop/ directory
 # PyInstaller needs to be told to bundle the right one for THIS OS.
 if sys.platform.startswith("win"):
     CLIENT_HIDDEN = ["pynput.keyboard._win32", "pynput.mouse._win32",
-                     "mss.windows"]
+                     "mss.windows", "pystray._win32"]
 elif sys.platform == "darwin":
     CLIENT_HIDDEN = ["pynput.keyboard._darwin", "pynput.mouse._darwin",
                      "mss.darwin"]
