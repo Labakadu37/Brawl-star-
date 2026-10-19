@@ -106,9 +106,22 @@ def discover_clients(timeout=1.5):
     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     s.settimeout(0.3)
     found = {}
+
+    # Probe several targets so discovery works whether the client is on
+    # another machine (global + subnet-directed broadcast) or on this very
+    # machine for testing (loopback).
+    targets = {"255.255.255.255", "127.0.0.1"}
+    ip = local_ip()
+    if ip.count(".") == 3 and not ip.startswith("127."):
+        targets.add(ip.rsplit(".", 1)[0] + ".255")
+
     try:
-        s.sendto(DISCOVERY_MAGIC.encode("utf-8"),
-                 ("255.255.255.255", DISCOVERY_PORT))
+        magic = DISCOVERY_MAGIC.encode("utf-8")
+        for target in targets:
+            try:
+                s.sendto(magic, (target, DISCOVERY_PORT))
+            except OSError:
+                pass
         deadline = time.time() + timeout
         while time.time() < deadline:
             try:
@@ -126,4 +139,12 @@ def discover_clients(timeout=1.5):
                                       "ip": addr[0], "port": port}
     finally:
         s.close()
-    return sorted(found.values(), key=lambda c: c["name"].lower())
+
+    # When admin and client run on the same machine, the client answers
+    # both the loopback probe and its own LAN address: drop the loopback
+    # copy if the same client also replied from a real address.
+    real_names = {c["name"] for c in found.values()
+                  if not c["ip"].startswith("127.")}
+    clients = [c for c in found.values()
+               if not (c["ip"].startswith("127.") and c["name"] in real_names)]
+    return sorted(clients, key=lambda c: c["name"].lower())

@@ -87,22 +87,6 @@ class AdminApp:
                   font=("Helvetica", 11, "bold"),
                   padx=14, pady=6).grid(row=0, column=1, padx=6)
 
-        manual = tk.Frame(f, bg="#7a0b0b")
-        manual.pack(pady=(6, 0))
-        tk.Label(manual, text="ou adresse manuelle :", bg="#7a0b0b",
-                 fg="white").grid(row=0, column=0, padx=4)
-        self.ip_entry = tk.Entry(manual, width=16)
-        self.ip_entry.grid(row=0, column=1)
-        self.ip_entry.insert(0, "")
-        tk.Label(manual, text="port", bg="#7a0b0b", fg="white").grid(
-            row=0, column=2, padx=(8, 2))
-        self.port_entry = tk.Entry(manual, width=7)
-        self.port_entry.insert(0, str(protocol.CONTROL_PORT))
-        self.port_entry.grid(row=0, column=3)
-        tk.Button(manual, text="Connexion", command=self._connect_manual,
-                  bg="white", fg="#7a0b0b", relief="flat").grid(
-            row=0, column=4, padx=8)
-
         tok = tk.Frame(f, bg="#7a0b0b")
         tok.pack(pady=14)
         tk.Label(tok, text="Clé partagée :", bg="#7a0b0b", fg="white").pack(
@@ -114,28 +98,54 @@ class AdminApp:
         self.status = tk.Label(f, text="", bg="#7a0b0b", fg="#ffd7d7")
         self.status.pack()
         self._clients = []
+        self.on_connect_view = True
+        self._scanning = False
         self.scan()
+        self._auto_rescan()
+
+    def _auto_rescan(self):
+        """Keep the list fresh so PCs appear/disappear on their own."""
+        if not getattr(self, "on_connect_view", False):
+            return
+        if not self._scanning:
+            self.scan()
+        self.root.after(3000, self._auto_rescan)
 
     def scan(self):
+        if self._scanning:
+            return
+        self._scanning = True
         self.scan_btn.config(state="disabled")
-        self.status.config(text="Recherche en cours…")
+        if not self._clients:
+            self.status.config(text="Recherche en cours…")
 
         def work():
-            clients = protocol.discover_clients(timeout=1.5)
+            clients = protocol.discover_clients(timeout=1.2)
             self._events.put(("scan_done", clients))
 
         threading.Thread(target=work, daemon=True).start()
 
     def _render_clients(self, clients):
+        self._scanning = False
+        if not getattr(self, "on_connect_view", False):
+            return
+        # Preserve the current selection across auto-refreshes.
+        sel = self.listbox.curselection()
+        selected_name = self._clients[sel[0]]["name"] if sel else None
         self._clients = clients
         self.listbox.delete(0, tk.END)
         for c in clients:
-            self.listbox.insert(tk.END, "  %s        %s:%d"
-                                % (c["name"], c["ip"], c["port"]))
+            self.listbox.insert(tk.END, "   💻   %s" % c["name"])
+        if selected_name:
+            for i, c in enumerate(clients):
+                if c["name"] == selected_name:
+                    self.listbox.selection_set(i)
+                    break
         self.scan_btn.config(state="normal")
-        self.status.config(text="%d PC trouvé(s)." % len(clients)
-                           if clients else "Aucun PC trouvé. Lance l'app "
-                           "client sur l'autre PC, puis réessaie.")
+        self.status.config(text="%d PC disponible(s) — double-clique pour "
+                           "contrôler." % len(clients) if clients
+                           else "Aucun PC trouvé. Lance l'app client sur "
+                           "l'autre PC (même réseau Wi-Fi).")
 
     def _connect_selected(self):
         sel = self.listbox.curselection()
@@ -145,21 +155,9 @@ class AdminApp:
         c = self._clients[sel[0]]
         self._connect(c["ip"], c["port"])
 
-    def _connect_manual(self):
-        ip = self.ip_entry.get().strip()
-        if not ip:
-            self.status.config(text="Entre une adresse IP.")
-            return
-        try:
-            port = int(self.port_entry.get().strip())
-        except ValueError:
-            self.status.config(text="Port invalide.")
-            return
-        self._connect(ip, port)
-
     def _connect(self, ip, port):
         self.token = self.token_entry.get()
-        self.status.config(text="Connexion à %s:%d…" % (ip, port))
+        self.status.config(text="Connexion…")
 
         def work():
             try:
@@ -192,6 +190,7 @@ class AdminApp:
     def _start_session(self, sock, info):
         self.sock = sock
         self.stop_event.clear()
+        self.on_connect_view = False          # stop the auto-rescan loop
         self.connect_frame.destroy()
         self._frame_size = (info.get("width", 1), info.get("height", 1))
 
