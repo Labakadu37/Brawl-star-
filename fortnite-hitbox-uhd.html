@@ -1,0 +1,699 @@
+<title>Fortnite Hitbox UHD</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700;800&display=swap">
+<style>
+/* Layout: full-screen app with centered character canvas and floating HUD panels */
+:root {
+  --bg: #0a0c14;
+  --bg-panel: rgba(12, 16, 28, 0.92);
+  --fg: #e8eaf0;
+  --fg-dim: #7a8094;
+  --fg-muted: #4a4f66;
+  --accent: #00d4ff;
+  --accent-glow: rgba(0, 212, 255, 0.25);
+  --hit-head: #ff3a5c;
+  --hit-torso: #ff8c2e;
+  --hit-arms: #ffd024;
+  --hit-legs: #36d989;
+  --hit-head-a: rgba(255, 58, 92, 0.18);
+  --hit-torso-a: rgba(255, 140, 46, 0.18);
+  --hit-arms-a: rgba(255, 208, 36, 0.18);
+  --hit-legs-a: rgba(54, 217, 137, 0.18);
+  --border: rgba(255, 255, 255, 0.06);
+  --grid: rgba(255, 255, 255, 0.03);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f0f2f7;
+    --bg-panel: rgba(255, 255, 255, 0.94);
+    --fg: #1a1d2e;
+    --fg-dim: #6b7190;
+    --fg-muted: #a0a5b8;
+    --accent: #0090cc;
+    --accent-glow: rgba(0, 144, 204, 0.15);
+    --hit-head: #e02040;
+    --hit-torso: #d97020;
+    --hit-arms: #c49800;
+    --hit-legs: #1fa868;
+    --hit-head-a: rgba(224, 32, 64, 0.10);
+    --hit-torso-a: rgba(217, 112, 32, 0.10);
+    --hit-arms-a: rgba(196, 152, 0, 0.10);
+    --hit-legs-a: rgba(31, 168, 104, 0.10);
+    --border: rgba(0, 0, 0, 0.08);
+    --grid: rgba(0, 0, 0, 0.04);
+    color-scheme: light;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a0c14;
+  --bg-panel: rgba(12, 16, 28, 0.92);
+  --fg: #e8eaf0;
+  --fg-dim: #7a8094;
+  --fg-muted: #4a4f66;
+  --accent: #00d4ff;
+  --accent-glow: rgba(0, 212, 255, 0.25);
+  --hit-head: #ff3a5c;
+  --hit-torso: #ff8c2e;
+  --hit-arms: #ffd024;
+  --hit-legs: #36d989;
+  --hit-head-a: rgba(255, 58, 92, 0.18);
+  --hit-torso-a: rgba(255, 140, 46, 0.18);
+  --hit-arms-a: rgba(255, 208, 36, 0.18);
+  --hit-legs-a: rgba(54, 217, 137, 0.18);
+  --border: rgba(255, 255, 255, 0.06);
+  --grid: rgba(255, 255, 255, 0.03);
+  color-scheme: dark;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Rajdhani', sans-serif;
+  overflow: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+}
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 240px 1fr 280px;
+  grid-template-rows: auto 1fr auto;
+  gap: 0;
+}
+
+.top-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  background: var(--bg-panel);
+  z-index: 5;
+}
+.logo {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.logo span { color: var(--fg); font-weight: 300; }
+.top-bar .meta {
+  font-size: 13px;
+  color: var(--fg-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.left-panel {
+  grid-column: 1;
+  grid-row: 2;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.panel-title {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.skin-list { display: flex; flex-direction: column; gap: 6px; }
+.skin-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+}
+.skin-item:hover { background: var(--accent-glow); border-color: var(--border); }
+.skin-item.active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.skin-icon {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.canvas-area {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.canvas-area canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.grid-bg {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.character-wrap {
+  position: relative;
+  z-index: 2;
+  width: 320px;
+  max-width: 80%;
+}
+.character-wrap svg { width: 100%; height: auto; display: block; }
+
+.hitbox-label {
+  position: absolute;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(10px);
+  transition: all 0.25s ease;
+}
+.hitbox-label.visible { opacity: 1; transform: translateX(0); }
+.hitbox-label::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 1px;
+}
+
+.right-panel {
+  grid-column: 3;
+  grid-row: 2;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.zone-card {
+  border-radius: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.zone-card:hover, .zone-card.active {
+  border-color: var(--zone-color);
+  box-shadow: 0 0 20px var(--zone-glow);
+}
+.zone-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.zone-name {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.zone-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--zone-color);
+  box-shadow: 0 0 8px var(--zone-color);
+}
+.zone-stats { display: flex; flex-direction: column; gap: 6px; }
+.zone-stat {
+  display: flex; justify-content: space-between;
+  font-size: 13px;
+}
+.zone-stat-label { color: var(--fg-dim); }
+.zone-stat-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.zone-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  margin-top: 4px;
+  overflow: hidden;
+}
+.zone-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--zone-color);
+  transition: width 0.4s ease;
+}
+
+.bottom-bar {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.view-btn {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.view-btn:hover { border-color: var(--accent); color: var(--accent); }
+.view-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 100;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 14px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  backdrop-filter: blur(8px);
+  font-size: 13px;
+}
+.tooltip.show { opacity: 1; }
+.tooltip .tt-zone {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.tooltip .tt-dmg { font-weight: 600; }
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto auto;
+  }
+  .left-panel {
+    grid-column: 1;
+    grid-row: 2;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 10px;
+  }
+  .skin-list { flex-direction: row; }
+  .skin-item { white-space: nowrap; min-width: auto; }
+  .panel-title { display: none; }
+  .canvas-area { grid-column: 1; grid-row: 3; min-height: 400px; }
+  .right-panel {
+    grid-column: 1;
+    grid-row: 4;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .zone-card { min-width: 200px; flex-shrink: 0; }
+  .bottom-bar { grid-row: 5; }
+  .hitbox-label { display: none; }
+}
+</style>
+
+<div class="app">
+  <div class="top-bar">
+    <div class="logo">HITBOX<span>UHD</span></div>
+    <div class="meta" id="resolution">3840 × 2160</div>
+  </div>
+
+  <div class="left-panel">
+    <div class="panel-title">Skins</div>
+    <div class="skin-list" id="skinList"></div>
+  </div>
+
+  <div class="canvas-area">
+    <canvas id="bgCanvas"></canvas>
+    <div class="grid-bg"></div>
+    <div class="character-wrap" id="charWrap"></div>
+  </div>
+
+  <div class="right-panel">
+    <div class="panel-title">Zones de Hitbox</div>
+    <div id="zoneCards"></div>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="view-btn active" data-view="front">Face</button>
+    <button class="view-btn" data-view="side">Profil</button>
+    <button class="view-btn" data-view="back">Dos</button>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tt-zone" id="ttZone"></div>
+  <div class="tt-dmg" id="ttDmg"></div>
+</div>
+
+<script>
+const SKINS = [
+  { id: 'renegade', name: 'Renegade Raider', icon: '#ff3a5c', style: 'og', rarity: 'Rare' },
+  { id: 'skull',    name: 'Skull Trooper',    icon: '#b0b8cc', style: 'slim', rarity: 'Epic' },
+  { id: 'drift',    name: 'Drift',            icon: '#ff8c2e', style: 'coat', rarity: 'Legendary' },
+  { id: 'omega',    name: 'Omega',            icon: '#8844ff', style: 'armored', rarity: 'Legendary' },
+  { id: 'peely',    name: 'Peely',            icon: '#ffd024', style: 'wide', rarity: 'Epic' },
+  { id: 'custom',   name: 'Mon Skin',         icon: '#00d4ff', style: 'default', rarity: 'Custom' },
+];
+
+const ZONES = {
+  head:  { name: 'Tete',  color: 'var(--hit-head)',  glow: 'var(--hit-head-a)',  mult: 2.0, area: 12, note: 'Headshot critique' },
+  torso: { name: 'Torse', color: 'var(--hit-torso)', glow: 'var(--hit-torso-a)', mult: 1.0, area: 35, note: 'Degats de base' },
+  arms:  { name: 'Bras',  color: 'var(--hit-arms)',  glow: 'var(--hit-arms-a)',  mult: 0.75, area: 22, note: 'Degats reduits' },
+  legs:  { name: 'Jambes',color: 'var(--hit-legs)',   glow: 'var(--hit-legs-a)',  mult: 0.75, area: 31, note: 'Degats reduits' },
+};
+
+const SKIN_OFFSETS = {
+  og:      { headW: 0, torsoW: 0, armW: 0, legW: 0 },
+  slim:    { headW: -2, torsoW: -4, armW: -2, legW: -2 },
+  coat:    { headW: 0, torsoW: 6, armW: 4, legW: 0 },
+  armored: { headW: 4, torsoW: 8, armW: 6, legW: 4 },
+  wide:    { headW: 6, torsoW: 14, armW: 8, legW: 6 },
+  default: { headW: 0, torsoW: 0, armW: 0, legW: 0 },
+};
+
+let activeSkin = 'custom';
+let activeView = 'front';
+let activeZone = null;
+
+function buildSkinList() {
+  const list = document.getElementById('skinList');
+  list.innerHTML = '';
+  SKINS.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'skin-item' + (s.id === activeSkin ? ' active' : '');
+    btn.innerHTML = `<div class="skin-icon" style="background:${s.icon}20;color:${s.icon}"><svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="6" r="4" fill="currentColor" opacity="0.7"/><path d="M3 18c0-4 3-7 7-7s7 3 7 7" fill="currentColor" opacity="0.5"/></svg></div><div>${s.name}<br><span style="font-size:11px;color:var(--fg-dim)">${s.rarity}</span></div>`;
+    btn.onclick = () => { activeSkin = s.id; buildSkinList(); renderCharacter(); };
+    list.appendChild(btn);
+  });
+}
+
+function buildZoneCards() {
+  const container = document.getElementById('zoneCards');
+  container.innerHTML = '';
+  Object.entries(ZONES).forEach(([key, z]) => {
+    const card = document.createElement('div');
+    card.className = 'zone-card' + (activeZone === key ? ' active' : '');
+    card.style.setProperty('--zone-color', z.color);
+    card.style.setProperty('--zone-glow', z.glow);
+    card.style.background = activeZone === key ? z.glow.replace('var(','').replace(')','') : 'transparent';
+    card.innerHTML = `
+      <div class="zone-header">
+        <div class="zone-name" style="color:${z.color}">${z.name}</div>
+        <div class="zone-dot"></div>
+      </div>
+      <div class="zone-stats">
+        <div class="zone-stat"><span class="zone-stat-label">Multiplicateur</span><span class="zone-stat-val" style="color:${z.color}">×${z.mult.toFixed(2)}</span></div>
+        <div class="zone-stat"><span class="zone-stat-label">Surface</span><span class="zone-stat-val">${z.area}%</span></div>
+        <div class="zone-stat"><span class="zone-stat-label">Note</span><span class="zone-stat-val" style="font-size:11px;font-weight:400">${z.note}</span></div>
+        <div class="zone-bar"><div class="zone-bar-fill" style="width:${z.mult * 50}%;background:${z.color}"></div></div>
+      </div>`;
+    card.onmouseenter = () => { activeZone = key; highlightZone(key); };
+    card.onmouseleave = () => { activeZone = null; highlightZone(null); };
+    container.appendChild(card);
+  });
+}
+
+function getSkinData() {
+  const s = SKINS.find(x => x.id === activeSkin);
+  return s ? SKIN_OFFSETS[s.style] || SKIN_OFFSETS.default : SKIN_OFFSETS.default;
+}
+
+function renderCharacter() {
+  const wrap = document.getElementById('charWrap');
+  const off = getSkinData();
+  const skin = SKINS.find(x => x.id === activeSkin);
+  const accentCol = skin ? skin.icon : '#00d4ff';
+
+  const hw = 44 + off.headW;
+  const tw = 70 + off.torsoW;
+  const aw = 22 + off.armW;
+  const lw = 28 + off.legW;
+
+  const cx = 160;
+  const headY = 20;
+  const headH = 50;
+  const torsoY = headY + headH + 4;
+  const torsoH = 110;
+  const armY = torsoY + 5;
+  const armH = 100;
+  const legY = torsoY + torsoH + 4;
+  const legH = 120;
+
+  const isFront = activeView === 'front';
+  const isBack = activeView === 'back';
+  const isSide = activeView === 'side';
+
+  const sideSkew = isSide ? 0.55 : 1;
+  const sideOff = isSide ? 20 : 0;
+
+  const svgW = 320;
+  const svgH = legY + legH + 20;
+
+  let bodyParts = '';
+
+  // Shadow/glow under character
+  bodyParts += `<ellipse cx="${cx + sideOff}" cy="${svgH - 10}" rx="${60 * sideSkew}" ry="8" fill="${accentCol}" opacity="0.1"/>`;
+
+  // Legs
+  const legGap = 8;
+  if (!isSide) {
+    bodyParts += `<rect class="hitzone" data-zone="legs" x="${cx - lw - legGap/2}" y="${legY}" width="${lw}" height="${legH}" rx="12" fill="var(--hit-legs-a)" stroke="var(--hit-legs)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    bodyParts += `<rect class="hitzone" data-zone="legs" x="${cx + legGap/2}" y="${legY}" width="${lw}" height="${legH}" rx="12" fill="var(--hit-legs-a)" stroke="var(--hit-legs)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  } else {
+    bodyParts += `<rect class="hitzone" data-zone="legs" x="${cx + sideOff - lw*sideSkew/2}" y="${legY}" width="${lw * sideSkew}" height="${legH}" rx="10" fill="var(--hit-legs-a)" stroke="var(--hit-legs)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  }
+
+  // Arms
+  if (!isSide) {
+    bodyParts += `<rect class="hitzone" data-zone="arms" x="${cx - tw/2 - aw - 4}" y="${armY}" width="${aw}" height="${armH}" rx="10" fill="var(--hit-arms-a)" stroke="var(--hit-arms)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    bodyParts += `<rect class="hitzone" data-zone="arms" x="${cx + tw/2 + 4}" y="${armY}" width="${aw}" height="${armH}" rx="10" fill="var(--hit-arms-a)" stroke="var(--hit-arms)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  } else {
+    bodyParts += `<rect class="hitzone" data-zone="arms" x="${cx + sideOff + tw*sideSkew/2 - 2}" y="${armY}" width="${aw * sideSkew}" height="${armH}" rx="8" fill="var(--hit-arms-a)" stroke="var(--hit-arms)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  }
+
+  // Torso
+  bodyParts += `<rect class="hitzone" data-zone="torso" x="${cx + sideOff - tw*sideSkew/2}" y="${torsoY}" width="${tw * sideSkew}" height="${torsoH}" rx="14" fill="var(--hit-torso-a)" stroke="var(--hit-torso)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+
+  // Torso inner detail
+  if (isFront) {
+    bodyParts += `<line x1="${cx}" y1="${torsoY + 20}" x2="${cx}" y2="${torsoY + torsoH - 15}" stroke="var(--hit-torso)" stroke-width="0.5" opacity="0.3"/>`;
+    bodyParts += `<circle cx="${cx}" cy="${torsoY + 30}" r="6" fill="none" stroke="var(--hit-torso)" stroke-width="0.5" opacity="0.4"/>`;
+  }
+  if (isBack) {
+    bodyParts += `<line x1="${cx - 15}" y1="${torsoY + 25}" x2="${cx + 15}" y2="${torsoY + 25}" stroke="var(--hit-torso)" stroke-width="0.5" opacity="0.3"/>`;
+    bodyParts += `<line x1="${cx - 12}" y1="${torsoY + 50}" x2="${cx + 12}" y2="${torsoY + 50}" stroke="var(--hit-torso)" stroke-width="0.5" opacity="0.3"/>`;
+  }
+
+  // Head
+  bodyParts += `<ellipse class="hitzone" data-zone="head" cx="${cx + sideOff}" cy="${headY + headH/2}" rx="${hw/2 * sideSkew}" ry="${headH/2}" fill="var(--hit-head-a)" stroke="var(--hit-head)" stroke-width="2" stroke-dasharray="4 3"/>`;
+
+  // Face detail
+  if (isFront) {
+    bodyParts += `<line x1="${cx - 8}" y1="${headY + headH/2 - 3}" x2="${cx - 4}" y2="${headY + headH/2 - 3}" stroke="var(--hit-head)" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>`;
+    bodyParts += `<line x1="${cx + 4}" y1="${headY + headH/2 - 3}" x2="${cx + 8}" y2="${headY + headH/2 - 3}" stroke="var(--hit-head)" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>`;
+  }
+
+  // Crosshair marks
+  const markLen = 6;
+  const zones = [
+    { zone: 'head', cx: cx + sideOff, cy: headY + headH/2 },
+    { zone: 'torso', cx: cx + sideOff, cy: torsoY + torsoH/2 },
+  ];
+  zones.forEach(m => {
+    bodyParts += `<line x1="${m.cx - markLen}" y1="${m.cy}" x2="${m.cx + markLen}" y2="${m.cy}" stroke="var(--fg)" stroke-width="0.5" opacity="0.25"/>`;
+    bodyParts += `<line x1="${m.cx}" y1="${m.cy - markLen}" x2="${m.cx}" y2="${m.cy + markLen}" stroke="var(--fg)" stroke-width="0.5" opacity="0.25"/>`;
+  });
+
+  // Measurement lines
+  bodyParts += `<line x1="30" y1="${headY}" x2="30" y2="${headY + headH}" stroke="var(--fg-dim)" stroke-width="0.5" opacity="0.4"/>`;
+  bodyParts += `<text x="26" y="${headY + headH/2 + 3}" text-anchor="end" fill="var(--fg-dim)" font-size="9" font-family="Exo 2" opacity="0.5">${headH}u</text>`;
+  bodyParts += `<line x1="30" y1="${torsoY}" x2="30" y2="${torsoY + torsoH}" stroke="var(--fg-dim)" stroke-width="0.5" opacity="0.4"/>`;
+  bodyParts += `<text x="26" y="${torsoY + torsoH/2 + 3}" text-anchor="end" fill="var(--fg-dim)" font-size="9" font-family="Exo 2" opacity="0.5">${torsoH}u</text>`;
+
+  // Skin name tag
+  bodyParts += `<text x="${cx + sideOff}" y="${svgH - 2}" text-anchor="middle" fill="${accentCol}" font-size="11" font-family="Exo 2" font-weight="700" letter-spacing="2" opacity="0.6">${(skin ? skin.name : 'Custom').toUpperCase()}</text>`;
+
+  // View label
+  const viewLabels = { front: 'VUE FACE', side: 'VUE PROFIL', back: 'VUE DOS' };
+  bodyParts += `<text x="${cx + sideOff}" y="12" text-anchor="middle" fill="var(--fg-dim)" font-size="10" font-family="Exo 2" font-weight="600" letter-spacing="2">${viewLabels[activeView]}</text>`;
+
+  wrap.innerHTML = `<svg viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">${bodyParts}</svg>`;
+
+  // Event listeners
+  wrap.querySelectorAll('.hitzone').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.style.transition = 'all 0.2s';
+    el.addEventListener('mouseenter', e => {
+      const zone = el.dataset.zone;
+      activeZone = zone;
+      highlightZone(zone);
+      showTooltip(e, zone);
+    });
+    el.addEventListener('mousemove', e => moveTooltip(e));
+    el.addEventListener('mouseleave', () => {
+      activeZone = null;
+      highlightZone(null);
+      hideTooltip();
+    });
+  });
+}
+
+function highlightZone(zone) {
+  document.querySelectorAll('.hitzone').forEach(el => {
+    if (zone && el.dataset.zone !== zone) {
+      el.style.opacity = '0.2';
+    } else {
+      el.style.opacity = '1';
+    }
+    if (zone && el.dataset.zone === zone) {
+      el.style.filter = 'drop-shadow(0 0 8px currentColor)';
+      el.style.strokeWidth = '3';
+    } else {
+      el.style.filter = 'none';
+      el.style.strokeWidth = '1.5';
+    }
+  });
+  buildZoneCards();
+}
+
+function showTooltip(e, zone) {
+  const z = ZONES[zone];
+  const tt = document.getElementById('tooltip');
+  document.getElementById('ttZone').textContent = z.name;
+  document.getElementById('ttZone').style.color = z.color;
+  document.getElementById('ttDmg').innerHTML = `Multiplicateur: <span style="color:${z.color}">×${z.mult.toFixed(2)}</span><br>Surface: ${z.area}%`;
+  tt.classList.add('show');
+  moveTooltip(e);
+}
+function moveTooltip(e) {
+  const tt = document.getElementById('tooltip');
+  tt.style.left = (e.clientX + 16) + 'px';
+  tt.style.top = (e.clientY - 10) + 'px';
+}
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('show');
+}
+
+// Background particle canvas
+function initBgCanvas() {
+  const c = document.getElementById('bgCanvas');
+  const ctx = c.getContext('2d');
+  let particles = [];
+  function resize() {
+    c.width = c.offsetWidth * (window.devicePixelRatio || 1);
+    c.height = c.offsetHeight * (window.devicePixelRatio || 1);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < 40; i++) {
+    particles.push({
+      x: Math.random() * c.offsetWidth,
+      y: Math.random() * c.offsetHeight,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.5,
+      o: Math.random() * 0.15 + 0.03,
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, c.offsetWidth, c.offsetHeight);
+    const style = getComputedStyle(document.documentElement);
+    const col = style.getPropertyValue('--accent').trim() || '#00d4ff';
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = c.offsetWidth;
+      if (p.x > c.offsetWidth) p.x = 0;
+      if (p.y < 0) p.y = c.offsetHeight;
+      if (p.y > c.offsetHeight) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.globalAlpha = p.o;
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// View buttons
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeView = btn.dataset.view;
+    renderCharacter();
+  });
+});
+
+// Init
+buildSkinList();
+buildZoneCards();
+renderCharacter();
+initBgCanvas();
+</script>
