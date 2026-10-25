@@ -11,6 +11,11 @@ mod/native/obj/
 *.keystore
 *.jks
 
+# Gradle build cache
+.gradle/
+**/build/
+local.properties
+
 # IDE / OS
 .idea/
 .vscode/
