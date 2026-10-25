@@ -15,6 +15,7 @@ mod/native/obj/
 .gradle/
 **/build/
 local.properties
+webhook.properties
 
 # IDE / OS
 .idea/
