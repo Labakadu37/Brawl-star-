@@ -37,11 +37,21 @@ export default definePlugin({
             viewChannel = constants.Permissions.VIEW_CHANNEL;
         });
 
+        let loggedHidden = false;
         waitFor(filters.byProps("getChannelPermissions", "can"), store => {
             permissions = store;
             // Pretend every channel is visible, so the channel list shows them all.
             after(store, "can", ([permission, channel], result) => {
                 if (!realCheck && viewChannel !== undefined && permission === viewChannel && channel && !SKIPPED_TYPES.includes(channel.type)) {
+                    // Log one hidden channel's fields, to learn where its real name lives.
+                    if (!loggedHidden && result === false) {
+                        loggedHidden = true;
+                        logger.log("ShowHiddenChannels: hidden channel:", {
+                            name: channel.name,
+                            type: channel.type,
+                            keys: Object.keys(channel).join(","),
+                        });
+                    }
                     return true;
                 }
                 return result;
