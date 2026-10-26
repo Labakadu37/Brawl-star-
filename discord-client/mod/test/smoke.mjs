@@ -31,6 +31,10 @@ globalThis.__r = id => {
 };
 
 // --- Fake Discord modules ---
+// Like Discord's module 31: a Proxy answering every property, defined first.
+__d((g, r, d, a, module) => {
+    module.exports = new Proxy({}, { get: () => ({}), has: () => true });
+}, 99);
 __d((g, r, d, a, module) => {
     module.exports = {
         AppRegistry: {},
@@ -58,7 +62,7 @@ __d((g, r, d, a, module) => {
 }, 5);
 
 // Boot order similar to Discord: react-native first, then the app modules.
-for (const id of [0, 1, 2, 3, 4, 5]) __r(id);
+for (const id of [99, 0, 1, 2, 3, 4, 5]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
 const { vercors } = globalThis;
@@ -123,6 +127,7 @@ assert.deepEqual(saved.plugins, {
 });
 assert.ok(logs.some(l => l.includes("Metro define() captured")));
 assert.ok(logs.some(l => l.includes("Commands module found")));
+assert.ok(!logs.some(l => l.includes("not a function")), "proxy module must not match filters");
 
 const manifest = JSON.parse(readFileSync(new URL("../dist/plugins.json", import.meta.url), "utf8"));
 assert.deepEqual(manifest.plugins.map(p => p.name), ["NoTrack", "ClearURLs", "SilentTyping", "DevTools"]);

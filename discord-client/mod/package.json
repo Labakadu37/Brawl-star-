@@ -1,6 +1,6 @@
 {
   "name": "vercors-mobile",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Vencord-style client mod for the official Discord Android app",
   "license": "GPL-3.0-or-later",

@@ -63,14 +63,28 @@ function isObjectLike(value: unknown): value is Record<string, any> {
     return value != null && (typeof value === "object" || typeof value === "function");
 }
 
+// Some Discord modules export Proxies that return a value for *any* property
+// (lazy wrappers, i18n message tables). They would match every byProps filter.
+const PROBE_KEY = "__vercors_probe_that_no_module_exports__";
+
+function isBadExports(exports: any): boolean {
+    if (exports === globalThis) return true;
+    try {
+        return exports[PROBE_KEY] !== undefined;
+    } catch {
+        return true;
+    }
+}
+
 // Returns the matching export (the module itself or its `default`), or undefined.
 function testExports(exports: any, filter: Filter): any {
-    if (!isObjectLike(exports)) return undefined;
+    if (!isObjectLike(exports) || isBadExports(exports)) return undefined;
     try {
         if (filter(exports)) return exports;
     } catch {}
     try {
-        if (isObjectLike(exports.default) && filter(exports.default)) return exports.default;
+        const def = exports.default;
+        if (isObjectLike(def) && !isBadExports(def) && filter(def)) return def;
     } catch {}
     return undefined;
 }
