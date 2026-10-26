@@ -180,7 +180,9 @@ export function searchKeys(term: string, limit = 15): string[] {
             } catch {
                 continue;
             }
-            const matching = keys.filter(k => k.toLowerCase().includes(needle));
+            // Also match exported functions/classes by their own name (e.g. RowManager).
+            const named = typeof target === "function" && target.name ? [`${target.name}()`] : [];
+            const matching = [...named, ...keys].filter(k => k.toLowerCase().includes(needle));
             if (matching.length) results.push(`${id}${where}: ${matching.slice(0, 6).join(", ")}`);
             if (results.length >= limit) return results;
         }

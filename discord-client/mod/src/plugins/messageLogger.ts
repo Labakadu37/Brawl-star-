@@ -9,23 +9,17 @@ let highlightActive = false;
 
 const dispatcherFilter = filters.byProps("_interceptors", "dispatch");
 
-function currentUserId(): string | undefined {
-    try {
-        return find(filters.byStoreName("UserStore"))?.getCurrentUser?.()?.id;
-    } catch {
-        return undefined;
-    }
-}
-
 /**
  * The MESSAGE_UPDATE that keeps a deleted message in the chat, or undefined
- * when the delete should go through (unknown message, or our own).
+ * when the message isn't loaded (nothing to keep).
  */
 function updateFor(channelId: string, id: string, guildId?: string) {
     const message = find(filters.byStoreName("MessageStore"))?.getMessage?.(channelId, id);
     if (!message) return undefined;
-    if (message.author?.id && message.author.id === currentUserId()) return undefined;
 
+    // A delete often arrives twice (local + gateway): mark the text only once.
+    const alreadyKept = deletedIds.has(id);
+    if (!alreadyKept) logger.log(`MessageLogger: kept deleted message ${id}`);
     deletedIds.add(id);
     const content = typeof message.content === "string" ? message.content : "";
     return {
@@ -35,7 +29,7 @@ function updateFor(channelId: string, id: string, guildId?: string) {
             channel_id: channelId,
             guild_id: guildId,
             // Without the red highlight, mark the text instead.
-            content: highlightActive ? content : `🗑️ ${content}`,
+            content: highlightActive || alreadyKept ? content : `🗑️ ${content}`,
         },
         __vercors: true,
     };
@@ -65,8 +59,8 @@ function rewrite(action: any) {
 
 export default definePlugin({
     name: "MessageLogger",
-    description: "Garde les messages supprimés par les autres, surlignés en rouge (jusqu'au redémarrage)",
-    authors: ["Vercors"],
+    description: "Garde tous les messages supprimés (même les tiens), surlignés en rouge ou marqués 🗑️, jusqu'au redémarrage",
+    authors: ["JZSCord"],
     start({ waitFor, before, after, cleanup }) {
         waitFor(dispatcherFilter, dispatcher => {
             // Gateway events go through the interceptors, local ones through dispatch().
@@ -85,7 +79,10 @@ export default definePlugin({
         });
 
         // Chat rows are built by RowManager.generate: color the deleted ones.
-        waitFor(filters.byName("RowManager"), RowManager => {
+        const isRowManager = (m: any) =>
+            typeof m === "function" &&
+            (m.name === "RowManager" || (typeof m.prototype?.generate === "function" && /row/i.test(m.name ?? "")));
+        waitFor(isRowManager, RowManager => {
             highlightActive = true;
             after(RowManager.prototype, "generate", ([row], result) => {
                 const id = row?.message?.id ?? result?.message?.id;

@@ -14,7 +14,7 @@ const owo = (s: string) =>
 export default definePlugin({
     name: "MoreCommands",
     description: "Ajoute /lenny, /reverse, /mock, /owo, /upper, /lower, /flip, /roll",
-    authors: ["Vercors"],
+    authors: ["JZSCord"],
     start({ registerCommand }) {
         registerCommand({ name: "lenny", description: "( ͡° ͜ʖ ͡°)", execute: () => "( ͡° ͜ʖ ͡°)" });
         registerCommand({

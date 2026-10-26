@@ -76,7 +76,7 @@ export function createErrorBoundary() {
         const Text = getReactNative()?.Text;
         if (!isElementType(Text)) return null;
         const message = String(this.state.error?.stack ?? this.state.error);
-        return h(Text, { style: { color: "#f23f43", padding: 16 }, selectable: true }, `Vercors : ${message}`);
+        return h(Text, { style: { color: "#f23f43", padding: 16 }, selectable: true }, `JZSCord : ${message}`);
     };
     return ErrorBoundary;
 }

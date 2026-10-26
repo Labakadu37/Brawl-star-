@@ -12,8 +12,8 @@ function stringify(value: unknown): string {
 
 export default definePlugin({
     name: "DevTools",
-    description: "Ajoute /eval pour explorer les modules Discord (globalThis.vercors) — pour développeurs",
-    authors: ["Vercors"],
+    description: "Ajoute /eval pour explorer les modules Discord (globalThis.jzscord) — pour développeurs",
+    authors: ["JZSCord"],
     start({ registerCommand }) {
         registerCommand({
             name: "eval",

@@ -22,5 +22,5 @@ await build({
     outfile: "dist/vercors.js",
     format: "iife",
     minify: process.argv.includes("--minify"),
-    banner: { js: `// Vercors Mobile v${version}` },
+    banner: { js: `// JZSCord v${version}` },
 });

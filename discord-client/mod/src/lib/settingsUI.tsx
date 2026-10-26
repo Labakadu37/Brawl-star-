@@ -1,4 +1,4 @@
-// Adds a "Vercors" section to Discord's own settings screen, the way Revenge
+// Adds a "JZSCord" section to Discord's own settings screen, the way Revenge
 // does: rows are declared in SETTING_RENDERER_CONFIG, and the section is
 // inserted into the list built by createList().
 
@@ -9,7 +9,7 @@ import { after } from "./patcher";
 import { createErrorBoundary, findComponent, h } from "./react";
 import { PluginsPage } from "../ui/PluginsPage";
 
-const SECTION_TITLE = "Vercors";
+const SECTION_TITLE = "JZSCord";
 const ROW_KEY = "VERCORS";
 const PAGE_ROUTE = "VERCORS_PAGE";
 
@@ -27,7 +27,7 @@ function PageRoute() {
 function openPage() {
     const navigation = find(filters.byProps("getRootNavigationRef"))?.getRootNavigationRef?.();
     if (!navigation) return logger.error("Settings: navigation not found");
-    navigation.navigate(PAGE_ROUTE, { title: "Vercors" });
+    navigation.navigate(PAGE_ROUTE, { title: "JZSCord" });
 }
 
 function rows() {
@@ -36,14 +36,14 @@ function rows() {
     return {
         [PAGE_ROUTE]: {
             type: "route",
-            title: () => "Vercors",
-            useTitle: () => "Vercors",
+            title: () => "JZSCord",
+            useTitle: () => "JZSCord",
             screen: { route: PAGE_ROUTE, getComponent: () => PageRoute },
         },
         [ROW_KEY]: {
             type: "pressable",
-            title: () => "Plugins Vercors",
-            useTitle: () => "Plugins Vercors",
+            title: () => "Plugins JZSCord",
+            useTitle: () => "Plugins JZSCord",
             icon,
             IconComponent: () => (icon != null && TableRow?.Icon ? <TableRow.Icon source={icon} /> : null),
             useTrailing: () => `v${__VERCORS_VERSION__}`,

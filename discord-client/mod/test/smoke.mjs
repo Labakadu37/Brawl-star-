@@ -113,15 +113,17 @@ __d((g, r, d, a, module) => {
 __d((g, r, d, a, module) => {
     function DeveloperExperimentStore() {}
     DeveloperExperimentStore.displayName = "DeveloperExperimentStore";
-    Object.defineProperty(DeveloperExperimentStore.prototype, "isDeveloper", { get: () => false });
-    module.exports = { __esModule: true, default: new DeveloperExperimentStore() };
+    const store = new DeveloperExperimentStore();
+    store.getName = () => "DeveloperExperimentStore";
+    Object.defineProperty(store, "isDeveloper", { get: () => false, configurable: false });
+    module.exports = { __esModule: true, default: store };
 }, 18);
 
 // Boot order similar to Discord: react-native first, then the app modules.
 for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
-const { vercors } = globalThis;
+const { jzscord: vercors } = globalThis;
 assert.equal(typeof vercors.version, "string");
 
 assert.ok(calls.some(c => c[0] === "toast" && /chargé/.test(c[1])), "load toast shown");
@@ -142,12 +144,12 @@ assert.equal((await __r(5).post({ url: "/channels/1/messages" })).real.url, "/ch
 // Commands are appended to Discord's built-ins.
 const commands = __r(3).getBuiltInCommands(1);
 assert.equal(commands[0].name, "shrug");
-const vercorsCmd = commands.find(c => c.name === "vercors");
+const vercorsCmd = commands.find(c => c.name === "jzscord");
 assert.ok(vercorsCmd, "/vercors registered");
 assert.match(vercorsCmd.id, /^-\d+$/);
-assert.equal(vercorsCmd.untranslatedName, "vercors");
-assert.ok(!__r(3).getBuiltInCommands(2).some(c => c.name === "vercors"), "filtered by command type");
-assert.ok(__r(3).getBuiltInCommands([1, 2]).some(c => c.name === "vercors"));
+assert.equal(vercorsCmd.untranslatedName, "jzscord");
+assert.ok(!__r(3).getBuiltInCommands(2).some(c => c.name === "jzscord"), "filtered by command type");
+assert.ok(__r(3).getBuiltInCommands([1, 2]).some(c => c.name === "jzscord"));
 assert.ok(!commands.some(c => c.name === "eval"), "/eval only with DevTools");
 
 const run = (cmd, args) =>
@@ -205,7 +207,7 @@ const config = __r(11).SETTING_RENDERER_CONFIG;
 assert.ok(config.ACCOUNT, "Discord's rows are kept");
 assert.equal(config.VERCORS.type, "pressable");
 const { list } = __r(12).createList({ sections: [{ label: "Compte", settings: ["ACCOUNT"] }, { label: "App", settings: ["X"] }] });
-assert.deepEqual(list.map(s => s.label), ["Compte", "Vercors", "App"]);
+assert.deepEqual(list.map(s => s.label), ["Compte", "JZSCord", "App"]);
 config.VERCORS.onPress();
 assert.equal(navigations.pop()[0], "VERCORS_PAGE");
 
@@ -232,7 +234,9 @@ assert.deepEqual(row.backgroundHighlight, { backgroundColor: "processed(#f23f433
 assert.equal(new (__r(17).default)().generate({ message: { id: "other" } }).backgroundHighlight, undefined);
 
 dispatcher.dispatch({ type: "MESSAGE_DELETE", id: "m2", channelId: "c1" });
-assert.equal(dispatched.pop().type, "MESSAGE_DELETE", "own messages are really deleted");
+assert.equal(dispatched.pop().type, "MESSAGE_UPDATE", "own messages are kept too");
+dispatcher.dispatch({ type: "MESSAGE_DELETE", id: "m1", channelId: "c1" });
+assert.equal(dispatched.pop().message.content, "salut", "second delete event changes nothing");
 
 dispatcher.dispatch({ type: "MESSAGE_DELETE_BULK", ids: ["m3", "unknown"], channelId: "c1" });
 assert.deepEqual(dispatched.pop().ids, ["unknown"]);
@@ -248,6 +252,7 @@ assert.equal(dispatcher._interceptors.length, 0, "interceptor removed");
 await run(vercorsCmd, { action: "enable", plugin: "Experiments" });
 calls.pop();
 assert.equal(__r(18).default.isDeveloper, true);
+assert.equal(__r(18).default.getName(), "DeveloperExperimentStore", "other store members still work");
 await run(vercorsCmd, { action: "disable", plugin: "Experiments" });
 calls.pop();
 assert.equal(__r(18).default.isDeveloper, false);
@@ -261,7 +266,7 @@ await run(builtIns.find(c => c.name === "mock"), { texte: "bonjour" });
 assert.deepEqual(calls.pop(), ["sendMessage", "c1", "bOnJoUr"]);
 
 TestRenderer.act(() => renderer.unmount());
-assert.ok(!logs.some(l => l.startsWith("[Vercors] ") && /failed|threw/i.test(l) && !/eval/.test(l)), logs.filter(l => /failed|threw/i.test(l)).join("\n"));
+assert.ok(!logs.some(l => l.startsWith("[JZSCord] ") && /failed|threw/i.test(l) && !/eval/.test(l)), logs.filter(l => /failed|threw/i.test(l)).join("\n"));
 
 if (process.env.SHOW_LOGS) console.log(logs.join("\n"));
 console.log("smoke test passed");

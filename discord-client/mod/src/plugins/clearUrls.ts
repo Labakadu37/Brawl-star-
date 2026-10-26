@@ -44,7 +44,7 @@ function cleanMessage(message: any) {
 export default definePlugin({
     name: "ClearURLs",
     description: "Retire les paramètres de pistage (utm_*, fbclid, si…) des liens que tu envoies",
-    authors: ["Vercors"],
+    authors: ["JZSCord"],
     enabledByDefault: true,
     start({ waitFor, before }) {
         waitFor(filters.byProps("sendMessage", "editMessage"), messageActions => {

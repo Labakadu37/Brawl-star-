@@ -51,7 +51,7 @@ export function PluginsPage() {
     const [showLogs, setShowLogs] = useState(false);
 
     const navigation = find(filters.byProps("NavigationContainer", "useNavigation"))?.useNavigation?.();
-    useEffect(() => void navigation?.setOptions?.({ title: "Vercors" }), []);
+    useEffect(() => void navigation?.setOptions?.({ title: "JZSCord" }), []);
 
     const copyLogs = () => {
         find(filters.byProps("setString", "getString"))?.setString(getLogHistory());
@@ -85,7 +85,7 @@ export function PluginsPage() {
                 </Text>
             ) : null}
             <Text style={{ color: MUTED, fontSize: 12, textAlign: "center", marginTop: 24 }}>
-                Vercors Mobile v{__VERCORS_VERSION__} · les changements s'appliquent tout de suite
+                JZSCord v{__VERCORS_VERSION__} · les changements s'appliquent tout de suite
             </Text>
         </ScrollView>
     );

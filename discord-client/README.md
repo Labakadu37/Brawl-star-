@@ -1,4 +1,7 @@
-# Vercors Mobile
+# JZSCord
+
+> Anciennement « Vercors ». Le nom technique du module (`dev.vercors.xposed`)
+> ne change pas, pour que les mises à jour s'installent par-dessus.
 
 Un mod client pour **l'app Discord officielle sur Android**, dans l'esprit de
 [Vencord](https://vencord.dev) (qui ne marche que sur PC) et des mods mobiles
@@ -39,36 +42,36 @@ plugins.
 
 | Plugin | Par défaut | Ce qu'il fait |
 |---|---|---|
-| MessageLogger | ❌ | Garde les messages supprimés par les autres, surlignés en rouge (jusqu'au redémarrage) |
+| MessageLogger | ❌ | Garde tous les messages supprimés (même les tiens), surlignés en rouge ou marqués 🗑️, jusqu'au redémarrage |
 | NoTrack | ✅ | Bloque les requêtes de télémétrie (`/science`, `/metrics`…) |
 | ClearURLs | ✅ | Retire `utm_*`, `fbclid`, `si`… des liens que tu envoies |
 | SilentTyping | ❌ | Les autres ne voient plus « est en train d'écrire… » |
 | MoreCommands | ❌ | `/lenny`, `/reverse`, `/mock`, `/owo`, `/upper`, `/lower`, `/flip`, `/roll` |
 | Experiments | ❌ | Débloque le menu développeur / expériences de Discord |
-| DevTools | ❌ | Ajoute `/eval` pour explorer Discord (`vercors.metro.findByProps(...)`) |
+| DevTools | ❌ | Ajoute `/eval` pour explorer Discord (`jzscord.metro.findByProps(...)`) |
 
-**Réglages** : *Paramètres Discord → section **Vercors** → Plugins Vercors*.
+**Réglages** : *Paramètres Discord → section **JZSCord** → Plugins JZSCord*.
 Les interrupteurs s'appliquent tout de suite. La page a aussi un **journal**
 (afficher / copier) pour diagnostiquer un plugin qui ne marche pas.
 
-Les commandes `/vercors` restent disponibles :
+Les commandes `/jzscord` restent disponibles :
 
-- `/vercors action:liste` : liste des plugins (🟢 = actif)
-- `/vercors action:activer plugin:SilentTyping`
-- `/vercors action:chercher plugin:typing` : modules Discord dont une propriété contient ce mot
-- `/vercors action:infos` : version, loader, modules chargés
+- `/jzscord action:liste` : liste des plugins (🟢 = actif)
+- `/jzscord action:activer plugin:SilentTyping`
+- `/jzscord action:chercher plugin:typing` : modules Discord dont une propriété contient ce mot
+- `/jzscord action:infos` : version, loader, modules chargés
 
 ## Récupérer l'APK
 
 **Sans ordinateur** : à chaque push, GitHub Actions compile tout
-(workflow *Vercors (Discord mobile)*). Ouvre l'onglet **Actions** du dépôt,
-le dernier run, puis télécharge l'artefact `vercors` : il contient
+(workflow *JZSCord (Discord mobile)*). Ouvre l'onglet **Actions** du dépôt,
+le dernier run, puis télécharge l'artefact `jzscord` : il contient
 `app-release.apk` (le module) et `vercors.js`.
 
 **Sur PC** :
 
 ```bash
-cd discord-client/mod && npm install && npm test   # → dist/vercors.js
+cd discord-client/mod && npm install && npm test   # → dist/jzscord.js
 cd ../xposed && ./gradlew assembleRelease          # → app/build/outputs/apk/release/app-release.apk
 ```
 
@@ -81,33 +84,33 @@ cd ../xposed && ./gradlew assembleRelease          # → app/build/outputs/apk/r
 1. Installe l'APK du module (`app-release.apk`).
 2. Installe un **LSPatch** à jour (le fork maintenu de JingMatrix, ou NPatch).
 3. Dans LSPatch : *Gérer → + → Sélectionner une app installée → Discord*,
-   mode **Intégré** (« Integrated »), *Embed modules* → coche **Vercors**,
+   mode **Intégré** (« Integrated »), *Embed modules* → coche **JZSCord**,
    puis *Start Patch*.
 4. Désinstalle Discord, puis installe l'APK patché que LSPatch a produit
    (la signature change, d'où la désinstallation). Reconnecte-toi.
 
 ### Avec root : LSPosed
 
-Installe l'APK du module, active **Vercors** dans LSPosed avec la portée
+Installe l'APK du module, active **JZSCord** dans LSPosed avec la portée
 `com.discord`, puis force l'arrêt de Discord et relance-le.
 
 ### Vérifier
 
-Tape `/vercors` dans un salon : si la commande apparaît, le mod est chargé.
+Tape `/jzscord` dans un salon : si la commande apparaît, le mod est chargé.
 Sinon, regarde les logs :
 
 ```bash
-adb logcat | grep -E "Vercors|LSPosed"
+adb logcat | grep -E "JZSCord|LSPosed"
 ```
 
 ## Mettre à jour le mod sans réinstaller l'APK
 
 Le module peut télécharger `vercors.js` depuis une URL au lieu d'utiliser la
 copie embarquée. Crée
-`/data/data/com.discord/files/vercors/loader.json` (nécessite root) :
+`/data/data/com.discord/files/jzscord/loader.json` (nécessite root) :
 
 ```json
-{ "bundleUrl": "https://exemple.com/vercors.js" }
+{ "bundleUrl": "https://exemple.com/jzscord.js" }
 ```
 
 Le téléchargement se fait en arrière-plan et sert au lancement suivant.
@@ -143,13 +146,13 @@ export default definePlugin({
 Tout ce qu'un plugin fait via son contexte (patchs, `waitFor`, commandes) est
 annulé automatiquement quand on le désactive. Pour trouver les modules
 Discord, active DevTools et utilise par exemple
-`/eval code:Object.keys(vercors.metro.findByProps("sendMessage"))`.
+`/eval code:Object.keys(jzscord.metro.findByProps("sendMessage"))`.
 
 ## Limites connues
 
 - Les noms de modules / propriétés Discord changent avec les mises à jour :
   un plugin peut cesser de marcher (il ne fait alors rien, sans planter l'app).
-- Pas encore d'écran de réglages dans l'UI Discord : tout passe par `/vercors`.
+- Pas encore d'écran de réglages dans l'UI Discord : tout passe par `/jzscord`.
 - Testé ici avec un faux runtime Metro (`npm test`) ; le chargement réel
-  dépend de la version de Discord installée. Si `/vercors` n'apparaît pas,
+  dépend de la version de Discord installée. Si `/jzscord` n'apparaît pas,
   envoie les logs `adb logcat`.
