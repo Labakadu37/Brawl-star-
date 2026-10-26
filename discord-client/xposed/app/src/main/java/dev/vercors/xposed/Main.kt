@@ -1,5 +1,9 @@
 package dev.vercors.xposed
 
+import android.app.AndroidAppHelper
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.IXposedHookZygoteInit
 import de.robv.android.xposed.XposedBridge
@@ -8,9 +12,19 @@ import org.json.JSONObject
 import java.io.File
 
 const val TAG = "Vercors"
-const val LOADER_VERSION = "0.1.0"
+const val LOADER_VERSION = "0.1.1"
 
 fun log(message: String) = XposedBridge.log("[$TAG] $message")
+
+/** Short on-screen message, so problems are visible without adb. */
+fun toast(message: String, retries: Int = 20) {
+    val main = Handler(Looper.getMainLooper())
+    main.post {
+        val app = AndroidAppHelper.currentApplication()
+        if (app != null) Toast.makeText(app, message, Toast.LENGTH_SHORT).show()
+        else if (retries > 0) main.postDelayed({ toast(message, retries - 1) }, 500)
+    }
+}
 
 /**
  * Entry point (see assets/xposed_init). Runs inside Discord's process, writes
@@ -43,7 +57,8 @@ class Main : IXposedHookZygoteInit, IXposedHookLoadPackage {
             .put("dataDir", dir.absolutePath)
         preload.writeText("globalThis.__VERCORS_LOADER__ = $loaderInfo;\n")
 
-        ScriptInjector(listOf(preload, bundle.file)).install(lpparam.classLoader)
+        val injector = ScriptInjector(listOf(preload, bundle.file)) { toast("Vercors injecté ✓") }
+        if (injector.install(lpparam.classLoader) == 0) toast("Vercors : chargeur React Native introuvable")
         bundles.refreshRemoteInBackground()
     }
 }

@@ -26,6 +26,7 @@ globalThis.__r = id => {
 __d((g, r, d, a, module) => {
     module.exports = {
         AppRegistry: {},
+        ToastAndroid: { SHORT: 0, show: message => calls.push(["toast", message]) },
         NativeModules: {
             NativeFileModule: {
                 getConstants: () => ({ DocumentsDirPath: "/docs" }),
@@ -63,6 +64,9 @@ await new Promise(resolve => setTimeout(resolve, 10));
 const { vercors } = globalThis;
 assert.equal(typeof vercors.version, "string");
 
+assert.ok(calls.some(c => c[0] === "toast" && /chargé/.test(c[1])), "load toast shown");
+calls.length = 0;
+
 // SilentTyping is off by default.
 __r(1).startTyping("c1");
 assert.deepEqual(calls.pop(), ["startTyping", "c1"]);
@@ -80,6 +84,10 @@ const commands = __r(3).getBuiltInCommands(1);
 assert.equal(commands[0].name, "shrug");
 const vercorsCmd = commands.find(c => c.name === "vercors");
 assert.ok(vercorsCmd, "/vercors registered");
+assert.match(vercorsCmd.id, /^-\d+$/);
+assert.equal(vercorsCmd.untranslatedName, "vercors");
+assert.ok(!__r(3).getBuiltInCommands(2).some(c => c.name === "vercors"), "filtered by command type");
+assert.ok(__r(3).getBuiltInCommands([1, 2]).some(c => c.name === "vercors"));
 assert.ok(!commands.some(c => c.name === "eval"), "/eval only with DevTools");
 
 const run = (cmd, args) =>

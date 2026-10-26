@@ -8,7 +8,7 @@ import { after } from "./patcher";
 
 // Values from Discord's ApplicationCommand enums.
 const CommandType = { CHAT: 1 } as const;
-const CommandInputType = { BUILT_IN_TEXT: 1 } as const;
+const CommandInputType = { BUILT_IN: 0 } as const;
 export const OptionType = { STRING: 3, INTEGER: 4, BOOLEAN: 5 } as const;
 
 export interface CommandOption {
@@ -33,17 +33,21 @@ export interface CommandDef {
 }
 
 const registered: any[] = [];
+// Discord sorts commands by numeric id; built-ins use small negative ids.
+let nextId = -100000;
 
 function toDiscordCommand(def: CommandDef) {
     return {
-        id: `vercors-${def.name}`,
+        id: String(nextId--),
         applicationId: "-1",
         type: CommandType.CHAT,
-        inputType: CommandInputType.BUILT_IN_TEXT,
+        inputType: CommandInputType.BUILT_IN,
         name: def.name,
         displayName: def.name,
+        untranslatedName: def.name,
         description: def.description,
         displayDescription: def.description,
+        untranslatedDescription: def.description,
         options: (def.options ?? []).map(option => ({
             ...option,
             displayName: option.name,
@@ -77,8 +81,12 @@ export function registerCommand(def: CommandDef): () => void {
 
 export function initCommands() {
     waitFor(filters.byProps("getBuiltInCommands"), module => {
-        after(module, "getBuiltInCommands", (_args, result) => {
-            if (Array.isArray(result)) return result.concat(registered);
+        // getBuiltInCommands(type | type[], includeHidden, ...)
+        after(module, "getBuiltInCommands", ([type], result) => {
+            if (!Array.isArray(result)) return;
+            const wanted = (command: any) =>
+                type == null || (Array.isArray(type) ? type.includes(command.type) : type === command.type);
+            return result.concat(registered.filter(wanted));
         });
     });
 }

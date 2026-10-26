@@ -13,9 +13,19 @@ import { registerSettingsCommand } from "./settingsCommand";
 
 const g = globalThis as any;
 
+function toast(reactNative: any, message: string) {
+    try {
+        reactNative.ToastAndroid?.show(message, reactNative.ToastAndroid.SHORT ?? 0);
+    } catch {}
+}
+
 if (g.vercors) {
     logger.warn("Vercors was injected twice, ignoring the second copy");
 } else {
+    // Parts of Discord's code reference `window`, which is only defined later in its bundle.
+    g.window ??= g;
+    // Discord freezes some module exports, which would make them impossible to patch.
+    Object.freeze = Object.seal = ((o: unknown) => o) as any;
     metro.installMetroHook();
     g.vercors = { version: __VERCORS_VERSION__, metro, patcher, plugins: { getPlugins, findPlugin, setPluginEnabled } };
 
@@ -33,6 +43,11 @@ if (g.vercors) {
                 .then(() => {
                     startEnabledPlugins();
                     logger.log(`v${__VERCORS_VERSION__} loaded`);
+                    toast(reactNative, `Vercors v${__VERCORS_VERSION__} chargé ✓`);
+                })
+                .catch(e => {
+                    logger.error("Startup failed:", e);
+                    toast(reactNative, `Vercors : erreur au démarrage (${String(e)})`);
                 });
         },
     );
