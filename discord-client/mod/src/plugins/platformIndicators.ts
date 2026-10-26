@@ -1,7 +1,8 @@
 import { isRowManager } from "../lib/discord";
+import { writeBase64File } from "../lib/fs";
 import { logger } from "../lib/logger";
 import { filters, find } from "../lib/metro";
-import { renderPlatformIcons } from "../lib/platformIcons";
+import { renderPlatformIcons, renderPlatformIconsBase64 } from "../lib/platformIcons";
 import { definePlugin } from "../lib/plugins";
 import { getReactNative } from "../lib/react";
 
@@ -24,7 +25,12 @@ function platformsOf(userId: string): [string, string][] {
 function iconFor(platforms: [string, string][]): string {
     const key = platforms.map(p => p.join(":")).join(",");
     let uri = iconCache.get(key);
-    if (!uri) iconCache.set(key, (uri = renderPlatformIcons(platforms)));
+    if (!uri) {
+        // Prefer a file:// URL: the tag/badge image loader doesn't take data: URIs.
+        const fileName = `platform-${key.replace(/[^a-z0-9]/gi, "_")}.png`;
+        uri = writeBase64File(fileName, renderPlatformIconsBase64(platforms)) ?? renderPlatformIcons(platforms);
+        iconCache.set(key, uri);
+    }
     return uri;
 }
 
@@ -54,12 +60,13 @@ export default definePlugin({
                 const platforms = platformsOf(author.id);
                 if (!platforms.length) return;
                 const processColor = getReactNative()?.processColor;
-                // An icon-only tag: zero-width text on a transparent background.
+                // Render like the real "APP" tag: a verified-style pill with an
+                // icon. Zero-width text keeps it icon-only on a faint background.
                 message.tagText = "​";
                 message.tagIconUrl = iconFor(platforms);
+                message.tagVerified = true;
                 message.tagBackgroundColor = processColor?.("rgba(0,0,0,0.01)") ?? 0x03000000;
                 message.tagTextColor = processColor?.("rgba(0,0,0,0)") ?? 0;
-                message.tagVerified = false;
                 message.tagAccessibilityLabel = platforms.map(([p]) => LABELS[p]).join(", ");
             });
         });

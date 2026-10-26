@@ -1,7 +1,7 @@
 // Vencord-style platform icons (monitor, phone, globe, controller), drawn at
 // runtime in the status color and encoded as PNG data URIs.
 
-import { encodePalettePng, pngDataUri } from "./png";
+import { encodePalettePng, pngBase64, pngDataUri } from "./png";
 
 type Shape = (x: number, y: number) => boolean;
 
@@ -54,8 +54,8 @@ const SIZE = 48; // pixels; the image is square, icons share its width
 const SAMPLES = 4; // per axis, for anti-aliasing
 const LEVELS = 16; // transparency steps per color
 
-/** PNG data URI showing one icon per [platform, status] pair, left to right. */
-export function renderPlatformIcons(entries: [string, string][]): string {
+/** The PNG bytes for one icon per [platform, status] pair, left to right. */
+function renderPlatformIconsPng(entries: [string, string][]): number[] {
     const colors = Array.from(new Set(entries.map(([, status]) => STATUS_COLORS[status] ?? STATUS_COLORS.online)));
     // Palette: index 0 transparent, then LEVELS opacity steps for each color.
     const palette: number[][] = [[0, 0, 0, 0]];
@@ -87,5 +87,15 @@ export function renderPlatformIcons(entries: [string, string][]): string {
             }
         }
     });
-    return pngDataUri(encodePalettePng(SIZE, SIZE, pixels, palette));
+    return encodePalettePng(SIZE, SIZE, pixels, palette);
+}
+
+/** Data URI (works in RN <Image>, but not always in the tag/badge loader). */
+export function renderPlatformIcons(entries: [string, string][]): string {
+    return pngDataUri(renderPlatformIconsPng(entries));
+}
+
+/** Base64 PNG, for writing to a file served as file://. */
+export function renderPlatformIconsBase64(entries: [string, string][]): string {
+    return pngBase64(renderPlatformIconsPng(entries));
 }

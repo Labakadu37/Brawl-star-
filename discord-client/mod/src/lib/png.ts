@@ -69,4 +69,5 @@ export function encodePalettePng(width: number, height: number, pixels: number[]
     ];
 }
 
-export const pngDataUri = (png: number[]) => `data:image/png;base64,${base64(png)}`;
+export const pngBase64 = (png: number[]) => base64(png);
+export const pngDataUri = (png: number[]) => `data:image/png;base64,${pngBase64(png)}`;

@@ -12,10 +12,12 @@ const calls = [];
 const logs = [];
 globalThis.nativeLoggingHook = message => logs.push(message);
 globalThis.nativeModuleProxy = {
-    NativeFileModule: { writeFile: async (dir, path, data) => void files.set(`/docs/${path}`, data) },
+    NativeFileModule: {
+        writeFile: async (dir, path, data, encoding) => void files.set(`/docs/${path}`, encoding === "base64" ? Buffer.from(data, "base64") : data),
+    },
 };
 // What the Xposed loader's preload.js provides.
-globalThis.__VERCORS_LOADER__ = { version: "test", settings: { plugins: { ClearURLs: { enabled: true } } } };
+globalThis.__VERCORS_LOADER__ = { version: "test", dataDir: "/docs/vercors", settings: { plugins: { ClearURLs: { enabled: true } } } };
 
 // Inject Vercors first, exactly like the Xposed loader does.
 vm.runInThisContext(readFileSync(new URL("../dist/vercors.js", import.meta.url), "utf8"));
@@ -150,7 +152,7 @@ __d((g, r, d, a, module) => {
 }, 23);
 const fetched = [];
 __d((g, r, d, a, module) => {
-    module.exports = { fetchMessages: ({ channelId }) => (fetched.push(channelId), Promise.resolve("real")) };
+    module.exports = { fetchMessages: ({ channelId }) => (fetched.push(channelId), Promise.resolve("real")), jumpToMessage: () => {} };
 }, 24);
 __d((g, r, d, a, module) => {
     module.exports = { createPendingReply: reply => calls.push(["reply", reply.shouldMention]) };
@@ -297,7 +299,11 @@ const pcAndPhone = rowFor("pcAndPhone");
 assert.equal(pcAndPhone.username, "Pseudo", "no text added to the name");
 assert.equal(pcAndPhone.tagText, "\u200b");
 assert.equal(pcAndPhone.tagAccessibilityLabel, "PC, Téléphone");
-const png = Buffer.from(pcAndPhone.tagIconUrl.replace("data:image/png;base64,", ""), "base64");
+assert.equal(pcAndPhone.tagVerified, true);
+assert.ok(pcAndPhone.tagIconUrl.startsWith("file:///docs/vercors/platform-"), pcAndPhone.tagIconUrl);
+await new Promise(r => setTimeout(r, 5));
+const png = files.get(pcAndPhone.tagIconUrl.replace("file:///docs/", "/docs/"));
+assert.ok(png, "icon file written");
 assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "a PNG");
 // The pixel data must inflate (valid zlib) to 48 rows of 1 filter byte + 48 pixels.
 const { inflateSync } = await import("node:zlib");

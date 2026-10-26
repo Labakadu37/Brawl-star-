@@ -65,7 +65,7 @@ export default definePlugin({
                 return original(...args);
             });
         });
-        waitFor(filters.byProps("fetchMessages"), fetcher => {
+        waitFor(m => typeof m.fetchMessages === "function" && typeof m.jumpToMessage === "function", fetcher => {
             instead(fetcher, "fetchMessages", (args, original) => {
                 const channelId = typeof args[0] === "object" ? args[0]?.channelId : args[0];
                 if (isHidden(channelId)) return Promise.resolve();
