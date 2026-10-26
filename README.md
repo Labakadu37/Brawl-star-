@@ -63,6 +63,12 @@ Rendered in the game's own activity window, so it survives orientation
 changes and the game's own draw pass without any `SYSTEM_ALERT_WINDOW`
 permission.
 
+## Also in this repo
+
+`discord-client/` contains **Vercors Mobile**, a Vencord-style mod for the
+official Discord Android app (Xposed / LSPatch module + JS plugins). See
+`discord-client/README.md`.
+
 ## Legal
 
 This is a client-side, cosmetic mod for personal use. It does not touch

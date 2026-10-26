@@ -1,0 +1,16 @@
+{
+  "name": "vercors-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vencord-style client mod for the official Discord Android app",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node build.mjs && node test/smoke.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2",
+    "typescript": "5.6.3"
+  }
+}

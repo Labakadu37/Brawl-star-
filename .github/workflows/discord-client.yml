@@ -1,0 +1,42 @@
+name: Vercors (Discord mobile)
+
+on:
+  push:
+    paths: ["discord-client/**", ".github/workflows/discord-client.yml"]
+  pull_request:
+    paths: ["discord-client/**", ".github/workflows/discord-client.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: discord-client/mod/package-lock.json
+
+      - name: Build & test the JS mod
+        working-directory: discord-client/mod
+        run: |
+          npm ci
+          npm test
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build the Xposed module APK
+        working-directory: discord-client/xposed
+        run: ./gradlew assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vercors
+          path: |
+            discord-client/xposed/app/build/outputs/apk/release/app-release.apk
+            discord-client/mod/dist/vercors.js
