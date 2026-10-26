@@ -81,6 +81,7 @@ export function registerCommand(def: CommandDef): () => void {
 
 export function initCommands() {
     waitFor(filters.byProps("getBuiltInCommands"), module => {
+        logger.log("Commands module found, adding", registered.length, "command(s)");
         // getBuiltInCommands(type | type[], includeHidden, ...)
         after(module, "getBuiltInCommands", ([type], result) => {
             if (!Array.isArray(result)) return;

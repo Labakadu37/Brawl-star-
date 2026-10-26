@@ -42,7 +42,7 @@ function wrapDefine(define: Function) {
 export function installMetroHook() {
     const g = globalThis as any;
     if (typeof g.__d === "function") {
-        logger.warn("Metro was already initialised, modules defined so far are invisible to Vercors");
+        logger.warn("Injected after Discord's bundle started: modules defined so far are invisible");
         g.__d = wrapDefine(g.__d);
         return;
     }
@@ -53,6 +53,7 @@ export function installMetroHook() {
         enumerable: true,
         get: () => wrappedDefine,
         set: (define: Function) => {
+            logger.log("Metro define() captured");
             wrappedDefine = wrapDefine(define);
         },
     });

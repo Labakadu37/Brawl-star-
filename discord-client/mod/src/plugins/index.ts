@@ -4,6 +4,8 @@ import devTools from "./devTools";
 import noTrack from "./noTrack";
 import silentTyping from "./silentTyping";
 
+export const builtinPlugins = [noTrack, clearUrls, silentTyping, devTools];
+
 export function registerBuiltinPlugins() {
-    [noTrack, clearUrls, silentTyping, devTools].forEach(registerPlugin);
+    builtinPlugins.forEach(registerPlugin);
 }

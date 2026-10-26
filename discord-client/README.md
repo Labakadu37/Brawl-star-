@@ -44,7 +44,13 @@ plugins.
 | SilentTyping | ❌ | Les autres ne voient plus « est en train d'écrire… » |
 | DevTools | ❌ | Ajoute `/eval` pour explorer Discord (`vercors.metro.findByProps(...)`) |
 
-Dans n'importe quel salon :
+**Menu Vercors** : un bouton rond « V » apparaît sur le bord droit de
+Discord (on peut le faire glisser vers le haut ou le bas). Il ouvre la liste
+des plugins (cocher puis *Appliquer* redémarre Discord) et un **Journal**
+qui affiche les logs du mod, avec un bouton *Copier*. Ce menu est natif
+Android : il marche même si la partie JS du mod ne se charge pas.
+
+Dans n'importe quel salon, si les commandes sont chargées :
 
 - `/vercors action:liste` : liste des plugins (🟢 = actif)
 - `/vercors action:activer plugin:SilentTyping`

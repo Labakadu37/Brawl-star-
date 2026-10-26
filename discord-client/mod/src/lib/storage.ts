@@ -1,5 +1,7 @@
-// Settings persisted as JSON in Discord's documents directory, through the
-// file native module Discord already ships (its name changed across versions).
+// Settings live in files/vercors/settings.json in Discord's data dir. The
+// Xposed loader reads that file and hands it to us in __VERCORS_LOADER__, and
+// its native menu writes it too; /vercors writes it through Discord's file
+// native module when that is available.
 
 import { logger } from "./logger";
 
@@ -11,44 +13,28 @@ export interface Settings {
 
 export const settings: Settings = { plugins: {} };
 
-let fileModule: any;
+const loaderSettings = (globalThis as any).__VERCORS_LOADER__?.settings;
+if (loaderSettings && typeof loaderSettings.plugins === "object") settings.plugins = loaderSettings.plugins;
+
 let saveTimer: number | undefined;
 
-function resolveFileModule(nativeModules: any) {
-    const turboModuleProxy = (globalThis as any).__turboModuleProxy;
+function getFileModule() {
+    const g = globalThis as any;
     for (const name of ["NativeFileModule", "RTNFileManager", "DCDFileManager"]) {
-        const mod = nativeModules?.[name] ?? turboModuleProxy?.(name);
-        if (mod) return mod;
+        try {
+            const mod = g.__turboModuleProxy?.(name) ?? g.nativeModuleProxy?.[name];
+            if (mod) return mod;
+        } catch {}
     }
     return undefined;
 }
 
-function documentsDir(): string | undefined {
-    return fileModule?.getConstants?.().DocumentsDirPath ?? fileModule?.DocumentsDirPath;
-}
-
-export async function loadSettings(nativeModules: any) {
-    fileModule = resolveFileModule(nativeModules);
-    const dir = documentsDir();
-    if (!fileModule || !dir) {
-        logger.warn("No file native module found, settings will not persist");
-        return;
-    }
-    try {
-        const path = `${dir}/${SETTINGS_PATH}`;
-        if (!(await fileModule.fileExists(path))) return;
-        const saved = JSON.parse(await fileModule.readFile(path, "utf8"));
-        if (saved && typeof saved.plugins === "object") settings.plugins = saved.plugins;
-    } catch (e) {
-        logger.error("Failed to load settings:", e);
-    }
-}
-
 export function saveSettings() {
-    if (!fileModule) return;
     if (saveTimer !== undefined) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
         saveTimer = undefined;
+        const fileModule = getFileModule();
+        if (!fileModule) return logger.warn("No file native module, settings change won't survive a restart");
         Promise.resolve(fileModule.writeFile("documents", SETTINGS_PATH, JSON.stringify(settings), "utf8")).catch(
             (e: unknown) => logger.error("Failed to save settings:", e),
         );

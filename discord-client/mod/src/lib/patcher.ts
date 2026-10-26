@@ -40,18 +40,21 @@ function createPatchedFunction(state: PatchState) {
             }
         }
 
-        let implementation = (...a: any[]) => state.original.apply(this, a);
-        for (const instead of state.insteads) {
-            const previous = implementation;
-            implementation = (...a: any[]) => {
-                try {
-                    return instead.call(this, a, previous);
-                } catch (e) {
-                    logger.error("instead patch threw, falling back:", e);
-                    return previous(...a);
-                }
-            };
-        }
+        // Each instead wraps the previous one. Built with reduce so every wrapper
+        // captures its own `previous` (Hermes may not scope `const` per iteration).
+        const self = this;
+        const implementation = state.insteads.reduce(
+            (previous: (...a: any[]) => any, instead) =>
+                (...a: any[]) => {
+                    try {
+                        return instead.call(self, a, previous);
+                    } catch (e) {
+                        logger.error("instead patch threw, falling back:", e);
+                        return previous(...a);
+                    }
+                },
+            (...a: any[]) => state.original.apply(self, a),
+        );
         let result = implementation(...args);
 
         for (const after of state.afters) {

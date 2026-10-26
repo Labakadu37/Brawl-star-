@@ -7,7 +7,6 @@ import { logger } from "./lib/logger";
 import * as metro from "./lib/metro";
 import * as patcher from "./lib/patcher";
 import { findPlugin, getPlugins, setPluginEnabled, startEnabledPlugins } from "./lib/plugins";
-import { loadSettings } from "./lib/storage";
 import { registerBuiltinPlugins } from "./plugins";
 import { registerSettingsCommand } from "./settingsCommand";
 
@@ -16,12 +15,14 @@ const g = globalThis as any;
 function toast(reactNative: any, message: string) {
     try {
         reactNative.ToastAndroid?.show(message, reactNative.ToastAndroid.SHORT ?? 0);
-    } catch {}
+    } catch (e) {
+        logger.warn("Toast failed:", e);
+    }
 }
 
-if (g.vercors) {
-    logger.warn("Vercors was injected twice, ignoring the second copy");
-} else {
+function start() {
+    logger.log(`v${__VERCORS_VERSION__} starting, loader:`, g.__VERCORS_LOADER__?.version ?? "none");
+
     // Parts of Discord's code reference `window`, which is only defined later in its bundle.
     g.window ??= g;
     // Discord freezes some module exports, which would make them impossible to patch.
@@ -32,23 +33,27 @@ if (g.vercors) {
     registerBuiltinPlugins();
     registerSettingsCommand();
     initCommands();
+    // Plugins only subscribe to modules here; their patches apply as Discord loads them.
+    startEnabledPlugins();
 
     // react-native's index module is loaded once InitializeCore has set up the
     // runtime; `in` avoids triggering its lazy getters.
     metro.waitFor(
-        m => "AppRegistry" in m && "NativeModules" in m,
+        m => "AppRegistry" in m && "ToastAndroid" in m,
         reactNative => {
-            loadSettings(reactNative.NativeModules)
-                .catch(e => logger.error("Settings:", e))
-                .then(() => {
-                    startEnabledPlugins();
-                    logger.log(`v${__VERCORS_VERSION__} loaded`);
-                    toast(reactNative, `Vercors v${__VERCORS_VERSION__} chargé ✓`);
-                })
-                .catch(e => {
-                    logger.error("Startup failed:", e);
-                    toast(reactNative, `Vercors : erreur au démarrage (${String(e)})`);
-                });
+            const { defined, initialized } = metro.getModuleStats();
+            logger.log(`React Native ready (${initialized}/${defined} modules)`);
+            toast(reactNative, `Vercors v${__VERCORS_VERSION__} chargé ✓`);
         },
     );
+}
+
+if (g.vercors) {
+    logger.warn("Vercors was injected twice, ignoring the second copy");
+} else {
+    try {
+        start();
+    } catch (e) {
+        logger.error("Startup failed:", e);
+    }
 }

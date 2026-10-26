@@ -7,6 +7,14 @@ import vm from "node:vm";
 const files = new Map();
 const calls = [];
 
+const logs = [];
+globalThis.nativeLoggingHook = message => logs.push(message);
+globalThis.nativeModuleProxy = {
+    NativeFileModule: { writeFile: async (dir, path, data) => void files.set(`/docs/${path}`, data) },
+};
+// What the Xposed loader's preload.js provides.
+globalThis.__VERCORS_LOADER__ = { version: "test", settings: { plugins: { ClearURLs: { enabled: true } } } };
+
 // Inject Vercors first, exactly like the Xposed loader does.
 vm.runInThisContext(readFileSync(new URL("../dist/vercors.js", import.meta.url), "utf8"));
 
@@ -27,14 +35,6 @@ __d((g, r, d, a, module) => {
     module.exports = {
         AppRegistry: {},
         ToastAndroid: { SHORT: 0, show: message => calls.push(["toast", message]) },
-        NativeModules: {
-            NativeFileModule: {
-                getConstants: () => ({ DocumentsDirPath: "/docs" }),
-                fileExists: async path => files.has(path),
-                readFile: async path => files.get(path),
-                writeFile: async (dir, path, data) => void files.set(`/docs/${path}`, data),
-            },
-        },
     };
 }, 0);
 __d((g, r, d, a, module) => {
@@ -116,6 +116,15 @@ assert.match(calls.pop()[2], /```js\n2\n```/);
 // Settings are persisted (debounced).
 await new Promise(resolve => setTimeout(resolve, 600));
 const saved = JSON.parse(files.get("/docs/vercors/settings.json"));
-assert.deepEqual(saved.plugins, { SilentTyping: { enabled: false }, DevTools: { enabled: true } });
+assert.deepEqual(saved.plugins, {
+    ClearURLs: { enabled: true },
+    SilentTyping: { enabled: false },
+    DevTools: { enabled: true },
+});
+assert.ok(logs.some(l => l.includes("Metro define() captured")));
+assert.ok(logs.some(l => l.includes("Commands module found")));
+
+const manifest = JSON.parse(readFileSync(new URL("../dist/plugins.json", import.meta.url), "utf8"));
+assert.deepEqual(manifest.plugins.map(p => p.name), ["NoTrack", "ClearURLs", "SilentTyping", "DevTools"]);
 
 console.log("smoke test passed");

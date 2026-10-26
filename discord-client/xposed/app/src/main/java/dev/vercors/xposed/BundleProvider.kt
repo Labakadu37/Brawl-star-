@@ -42,12 +42,15 @@ class BundleProvider(
         }
     }
 
-    private fun openEmbedded(): InputStream? {
+    fun readEmbeddedText(name: String): String? =
+        runCatching { openEmbedded(name)?.use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull()
+
+    private fun openEmbedded(name: String = "vercors.js"): InputStream? {
         // Normal LSPosed install: the module APK is on our class loader's path.
-        moduleClassLoader?.getResourceAsStream("assets/vercors.js")?.let { return it }
+        moduleClassLoader?.getResourceAsStream("assets/$name")?.let { return it }
         // LSPatch & co. may load the module's dex from memory: read the APK itself.
         val zip = modulePath?.let { ZipFile(it) } ?: return null
-        val entry = zip.getEntry("assets/vercors.js") ?: return null.also { zip.close() }
+        val entry = zip.getEntry("assets/$name") ?: return null.also { zip.close() }
         return object : java.io.FilterInputStream(zip.getInputStream(entry)) {
             override fun close() {
                 super.close()
