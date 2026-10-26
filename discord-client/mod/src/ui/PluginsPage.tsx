@@ -1,14 +1,14 @@
 import { getLogHistory } from "../lib/logger";
 import { filters, find } from "../lib/metro";
 import { getPlugins, isRunning, setPluginEnabled } from "../lib/plugins";
-import { findComponent, h, ReactNative, useEffect, useState } from "../lib/react";
+import { findComponent, getReactNative, h, useEffect, useState } from "../lib/react";
 
 const MUTED = "#949ba4";
 const TEXT = "#dbdee1";
 
 // Plain React Native stand-ins, used if Discord's components can't be found.
 function FallbackGroup({ title, children }: any) {
-    const { View, Text } = ReactNative;
+    const { View, Text } = getReactNative();
     return (
         <View style={{ marginBottom: 16 }}>
             <Text style={{ color: MUTED, fontWeight: "bold", marginBottom: 8 }}>{title}</Text>
@@ -18,7 +18,7 @@ function FallbackGroup({ title, children }: any) {
 }
 
 function FallbackSwitchRow({ label, subLabel, value, onValueChange }: any) {
-    const { View, Text, Switch } = ReactNative;
+    const { View, Text, Switch } = getReactNative();
     return (
         <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10 }}>
             <View style={{ flex: 1 }}>
@@ -31,7 +31,7 @@ function FallbackSwitchRow({ label, subLabel, value, onValueChange }: any) {
 }
 
 function FallbackRow({ label, onPress }: any) {
-    const { Pressable, Text } = ReactNative;
+    const { Pressable, Text } = getReactNative();
     return (
         <Pressable onPress={onPress} style={{ paddingVertical: 12 }}>
             <Text style={{ color: TEXT }}>{label}</Text>
@@ -40,7 +40,9 @@ function FallbackRow({ label, onPress }: any) {
 }
 
 export function PluginsPage() {
-    const { ScrollView, Text } = ReactNative;
+    const ReactNative = getReactNative();
+    const { Text } = ReactNative;
+    const ScrollView = ReactNative.ScrollView ?? ReactNative.View;
     const Group = findComponent("TableRowGroup") ?? FallbackGroup;
     const SwitchRow = findComponent("TableSwitchRow") ?? FallbackSwitchRow;
     const Row = findComponent("TableRow") ?? FallbackRow;

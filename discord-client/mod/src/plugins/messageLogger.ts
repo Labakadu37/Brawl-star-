@@ -1,7 +1,7 @@
 import { logger } from "../lib/logger";
 import { filters, find } from "../lib/metro";
 import { definePlugin } from "../lib/plugins";
-import { ReactNative } from "../lib/react";
+import { getReactNative } from "../lib/react";
 
 const RED = "#f23f43";
 const deletedIds = new Set<string>();
@@ -90,7 +90,7 @@ export default definePlugin({
             after(RowManager.prototype, "generate", ([row], result) => {
                 const id = row?.message?.id ?? result?.message?.id;
                 if (!result || !id || !deletedIds.has(id)) return;
-                const color = (c: string) => ReactNative?.processColor?.(c) ?? c;
+                const color = (c: string) => getReactNative()?.processColor?.(c) ?? c;
                 result.backgroundHighlight = { backgroundColor: color(`${RED}33`), gutterColor: color(RED) };
             });
         });

@@ -8,7 +8,6 @@ import { logger } from "./lib/logger";
 import * as metro from "./lib/metro";
 import * as patcher from "./lib/patcher";
 import { findPlugin, getPlugins, setPluginEnabled, startEnabledPlugins } from "./lib/plugins";
-import { setReactNative } from "./lib/react";
 import { initSettingsUI } from "./lib/settingsUI";
 import { registerBuiltinPlugins } from "./plugins";
 import { registerSettingsCommand } from "./settingsCommand";
@@ -46,7 +45,6 @@ function start() {
     metro.waitFor(
         m => "AppRegistry" in m && "ToastAndroid" in m,
         reactNative => {
-            setReactNative(reactNative);
             const { defined, initialized } = metro.getModuleStats();
             logger.log(`React Native ready (${initialized}/${defined} modules)`);
             toast(reactNative, `Vercors v${__VERCORS_VERSION__} chargé ✓`);

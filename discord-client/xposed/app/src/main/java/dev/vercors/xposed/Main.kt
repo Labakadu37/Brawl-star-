@@ -13,7 +13,7 @@ import org.json.JSONObject
 import java.io.File
 
 const val TAG = "Vercors"
-const val LOADER_VERSION = "0.2.0"
+const val LOADER_VERSION = "0.2.1"
 
 fun log(message: String) {
     Log.i(TAG, message)

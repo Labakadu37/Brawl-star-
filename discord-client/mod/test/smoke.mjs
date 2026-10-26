@@ -37,6 +37,10 @@ globalThis.__r = id => {
 __d((g, r, d, a, module) => {
     module.exports = new Proxy({}, { get: () => ({}), has: () => true });
 }, 99);
+// A module that looks like react-native's index but has no components.
+__d((g, r, d, a, module) => {
+    module.exports = { AppRegistry: {}, ToastAndroid: { SHORT: 0, show: m => calls.push(["toast", m]) }, NativeModules: {} };
+}, 98);
 __d((g, r, d, a, module) => {
     module.exports = {
         AppRegistry: {},
@@ -114,7 +118,7 @@ __d((g, r, d, a, module) => {
 }, 18);
 
 // Boot order similar to Discord: react-native first, then the app modules.
-for (const id of [99, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18]) __r(id);
+for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
 const { vercors } = globalThis;
