@@ -42,9 +42,6 @@ class BundleProvider(
         }
     }
 
-    fun readEmbeddedText(name: String): String? =
-        runCatching { openEmbedded(name)?.use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull()
-
     private fun openEmbedded(name: String = "vercors.js"): InputStream? {
         // Normal LSPosed install: the module APK is on our class loader's path.
         moduleClassLoader?.getResourceAsStream("assets/$name")?.let { return it }

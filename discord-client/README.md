@@ -39,26 +39,24 @@ plugins.
 
 | Plugin | Par défaut | Ce qu'il fait |
 |---|---|---|
+| MessageLogger | ❌ | Garde les messages supprimés par les autres, surlignés en rouge (jusqu'au redémarrage) |
 | NoTrack | ✅ | Bloque les requêtes de télémétrie (`/science`, `/metrics`…) |
 | ClearURLs | ✅ | Retire `utm_*`, `fbclid`, `si`… des liens que tu envoies |
 | SilentTyping | ❌ | Les autres ne voient plus « est en train d'écrire… » |
+| MoreCommands | ❌ | `/lenny`, `/reverse`, `/mock`, `/owo`, `/upper`, `/lower`, `/flip`, `/roll` |
+| Experiments | ❌ | Débloque le menu développeur / expériences de Discord |
 | DevTools | ❌ | Ajoute `/eval` pour explorer Discord (`vercors.metro.findByProps(...)`) |
 
-**Menu Vercors** : un bouton rond « V » apparaît sur le bord droit de
-Discord (on peut le faire glisser vers le haut ou le bas). Il ouvre la liste
-des plugins (cocher puis *Appliquer* redémarre Discord) et un **Journal**
-qui affiche les logs du mod, avec un bouton *Copier*. Ce menu est natif
-Android : il marche même si la partie JS du mod ne se charge pas.
+**Réglages** : *Paramètres Discord → section **Vercors** → Plugins Vercors*.
+Les interrupteurs s'appliquent tout de suite. La page a aussi un **journal**
+(afficher / copier) pour diagnostiquer un plugin qui ne marche pas.
 
-Dans n'importe quel salon, si les commandes sont chargées :
+Les commandes `/vercors` restent disponibles :
 
 - `/vercors action:liste` : liste des plugins (🟢 = actif)
 - `/vercors action:activer plugin:SilentTyping`
-- `/vercors action:désactiver plugin:NoTrack`
+- `/vercors action:chercher plugin:typing` : modules Discord dont une propriété contient ce mot
 - `/vercors action:infos` : version, loader, modules chargés
-
-Les réponses ne sont visibles que par toi, et les réglages sont sauvegardés
-dans `Documents/vercors/settings.json` (côté app Discord).
 
 ## Récupérer l'APK
 

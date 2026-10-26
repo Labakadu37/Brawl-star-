@@ -19,8 +19,16 @@ function format(value: unknown): string {
     }
 }
 
+// Recent lines, shown in the Vercors settings page.
+const history: string[] = [];
+const MAX_HISTORY = 300;
+
+export const getLogHistory = () => history.join("\n");
+
 function write(level: Level, args: unknown[]) {
     const message = [PREFIX, ...args.map(format)].join(" ");
+    history.push(`${level === Level.Error ? "E" : level === Level.Warn ? "W" : "I"} ${message.slice(PREFIX.length + 1)}`);
+    if (history.length > MAX_HISTORY) history.shift();
     const g = globalThis as any;
     try {
         if (typeof g.nativeLoggingHook === "function") return g.nativeLoggingHook(message, level);

@@ -5,14 +5,13 @@ plugins {
 
 // The JS mod built by ../mod (npm run build) is shipped inside the APK.
 val bundleFile = rootProject.file("../mod/dist/vercors.js")
-val manifestFile = rootProject.file("../mod/dist/plugins.json")
 val generatedAssets = layout.buildDirectory.dir("generated/vercorsAssets")
 
 val copyBundle by tasks.registering(Copy::class) {
     doFirst {
         check(bundleFile.exists()) { "Missing ${bundleFile.path}: run `npm install && npm run build` in discord-client/mod first" }
     }
-    from(bundleFile, manifestFile)
+    from(bundleFile)
     into(generatedAssets)
 }
 
@@ -24,8 +23,8 @@ android {
         applicationId = "dev.vercors.xposed"
         minSdk = 24
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.1.4"
+        versionCode = 6
+        versionName = "0.2.0"
     }
 
     buildTypes {

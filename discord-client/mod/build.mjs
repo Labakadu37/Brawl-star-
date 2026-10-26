@@ -1,6 +1,5 @@
 import { build } from "esbuild";
-import { readFileSync, writeFileSync } from "node:fs";
-import vm from "node:vm";
+import { readFileSync } from "node:fs";
 
 const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url)));
 
@@ -9,6 +8,9 @@ const common = {
     target: "es2016",
     legalComments: "none",
     define: { __VERCORS_VERSION__: JSON.stringify(version) },
+    jsx: "transform",
+    jsxFactory: "h",
+    jsxFragment: "Fragment",
     logLevel: "info",
 };
 
@@ -22,16 +24,3 @@ await build({
     minify: process.argv.includes("--minify"),
     banner: { js: `// Vercors Mobile v${version}` },
 });
-
-// plugins.json lists the plugins for the loader's native menu.
-const { outputFiles } = await build({
-    ...common,
-    entryPoints: ["src/plugins/manifest.ts"],
-    format: "iife",
-    globalName: "manifest",
-    write: false,
-    logLevel: "silent",
-});
-const sandbox = {};
-vm.runInNewContext(outputFiles[0].text + ";this.result = manifest.default;", sandbox);
-writeFileSync("dist/plugins.json", JSON.stringify({ version, plugins: sandbox.result }, null, 2) + "\n");

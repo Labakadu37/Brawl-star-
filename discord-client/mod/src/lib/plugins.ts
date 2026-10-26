@@ -13,6 +13,8 @@ export interface PluginContext {
     /** Calls `callback` for every module matching `filter`, including ones loaded later. */
     waitForAll: (filter: Filter, callback: (exports: any) => void) => void;
     registerCommand: (def: CommandDef) => void;
+    /** Runs `fn` when the plugin stops. */
+    cleanup: (fn: () => void) => void;
 }
 
 export interface PluginDef {
@@ -58,6 +60,7 @@ export function startPlugin(plugin: PluginDef) {
         waitFor: (filter, cb) => void disposers.push(waitFor(filter, found(cb))),
         waitForAll: (filter, cb) => void disposers.push(waitForAll(filter, found(cb))),
         registerCommand: def => void disposers.push(registerCommand(def)),
+        cleanup: fn => void disposers.push(fn),
     };
     try {
         plugin.start?.(ctx);

@@ -1,0 +1,90 @@
+import { getLogHistory } from "../lib/logger";
+import { filters, find } from "../lib/metro";
+import { getPlugins, isRunning, setPluginEnabled } from "../lib/plugins";
+import { findComponent, h, ReactNative, useEffect, useState } from "../lib/react";
+
+const MUTED = "#949ba4";
+const TEXT = "#dbdee1";
+
+// Plain React Native stand-ins, used if Discord's components can't be found.
+function FallbackGroup({ title, children }: any) {
+    const { View, Text } = ReactNative;
+    return (
+        <View style={{ marginBottom: 16 }}>
+            <Text style={{ color: MUTED, fontWeight: "bold", marginBottom: 8 }}>{title}</Text>
+            {children}
+        </View>
+    );
+}
+
+function FallbackSwitchRow({ label, subLabel, value, onValueChange }: any) {
+    const { View, Text, Switch } = ReactNative;
+    return (
+        <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10 }}>
+            <View style={{ flex: 1 }}>
+                <Text style={{ color: TEXT, fontWeight: "bold" }}>{label}</Text>
+                <Text style={{ color: MUTED, fontSize: 12 }}>{subLabel}</Text>
+            </View>
+            <Switch value={value} onValueChange={onValueChange} />
+        </View>
+    );
+}
+
+function FallbackRow({ label, onPress }: any) {
+    const { Pressable, Text } = ReactNative;
+    return (
+        <Pressable onPress={onPress} style={{ paddingVertical: 12 }}>
+            <Text style={{ color: TEXT }}>{label}</Text>
+        </Pressable>
+    );
+}
+
+export function PluginsPage() {
+    const { ScrollView, Text } = ReactNative;
+    const Group = findComponent("TableRowGroup") ?? FallbackGroup;
+    const SwitchRow = findComponent("TableSwitchRow") ?? FallbackSwitchRow;
+    const Row = findComponent("TableRow") ?? FallbackRow;
+
+    const [, rerender] = useState(0);
+    const [showLogs, setShowLogs] = useState(false);
+
+    const navigation = find(filters.byProps("NavigationContainer", "useNavigation"))?.useNavigation?.();
+    useEffect(() => void navigation?.setOptions?.({ title: "Vercors" }), []);
+
+    const copyLogs = () => {
+        find(filters.byProps("setString", "getString"))?.setString(getLogHistory());
+        ReactNative.ToastAndroid?.show("Journal copié", 0);
+    };
+
+    return (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+            <Group title="Plugins">
+                {getPlugins().map(plugin => (
+                    <SwitchRow
+                        key={plugin.name}
+                        label={plugin.name}
+                        subLabel={plugin.description}
+                        value={isRunning(plugin.name)}
+                        onValueChange={(enabled: boolean) => {
+                            setPluginEnabled(plugin, enabled);
+                            rerender(n => n + 1);
+                        }}
+                    />
+                ))}
+            </Group>
+            <Text style={{ height: 16 }} />
+            <Group title="Journal">
+                <Row label={showLogs ? "Masquer le journal" : "Afficher le journal"} onPress={() => setShowLogs(v => !v)} arrow />
+                <Row label="Copier le journal" onPress={copyLogs} />
+            </Group>
+            {showLogs ? (
+                <Text selectable style={{ color: MUTED, fontFamily: "monospace", fontSize: 10, marginTop: 12 }}>
+                    {getLogHistory() || "Journal vide"}
+                </Text>
+            ) : null}
+            <Text style={{ color: MUTED, fontSize: 12, textAlign: "center", marginTop: 24 }}>
+                Vercors Mobile v{__VERCORS_VERSION__} · les changements s'appliquent tout de suite
+            </Text>
+        </ScrollView>
+    );
+}

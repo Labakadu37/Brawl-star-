@@ -2,11 +2,14 @@
 // own bundle, so only synchronous setup can happen at the top level: the
 // React Native runtime (timers, promises, native modules) isn't there yet.
 
+import { initAssets } from "./lib/assets";
 import { initCommands } from "./lib/commands";
 import { logger } from "./lib/logger";
 import * as metro from "./lib/metro";
 import * as patcher from "./lib/patcher";
 import { findPlugin, getPlugins, setPluginEnabled, startEnabledPlugins } from "./lib/plugins";
+import { setReactNative } from "./lib/react";
+import { initSettingsUI } from "./lib/settingsUI";
 import { registerBuiltinPlugins } from "./plugins";
 import { registerSettingsCommand } from "./settingsCommand";
 
@@ -33,6 +36,8 @@ function start() {
     registerBuiltinPlugins();
     registerSettingsCommand();
     initCommands();
+    initAssets();
+    initSettingsUI();
     // Plugins only subscribe to modules here; their patches apply as Discord loads them.
     startEnabledPlugins();
 
@@ -41,6 +46,7 @@ function start() {
     metro.waitFor(
         m => "AppRegistry" in m && "ToastAndroid" in m,
         reactNative => {
+            setReactNative(reactNative);
             const { defined, initialized } = metro.getModuleStats();
             logger.log(`React Native ready (${initialized}/${defined} modules)`);
             toast(reactNative, `Vercors v${__VERCORS_VERSION__} chargé ✓`);
