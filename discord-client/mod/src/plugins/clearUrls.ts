@@ -6,6 +6,8 @@ const TRACKING_PARAMS = [
     /^utm_\w+$/,
     /^(fbclid|gclid|dclid|msclkid|mc_eid|mc_cid|igshid|igsh|yclid|twclid|_hsenc|_hsmi|mkt_tok)$/,
     /^(ref_src|ref_url|si|feature|pp|spm|scm)$/,
+    // TikTok share links
+    /^(is_from_webapp|sender_device|sender_web_id|is_copy_url|share_app_id|share_link_id|share_item_id|u_code|_r|_t|social_sharing|web_id)$/,
 ];
 const URL_PATTERN = /https?:\/\/[^\s<>]+/g;
 

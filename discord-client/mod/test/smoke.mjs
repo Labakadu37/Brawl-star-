@@ -112,7 +112,11 @@ __d((g, r, d, a, module) => {
 __d((g, r, d, a, module) => {
     function RowManager() {}
     RowManager.prototype.generate = row => ({
-        message: { ...row.message, username: row.message.author ? row.message.author.username : undefined, author: undefined },
+        message: {
+            ...row.message,
+            username: row.message.author ? row.message.author.globalName ?? row.message.author.username : undefined,
+            author: undefined,
+        },
     });
     module.exports = { __esModule: true, default: RowManager };
 }, 17);
@@ -126,7 +130,36 @@ __d((g, r, d, a, module) => {
 }, 18);
 
 // Boot order similar to Discord: react-native first, then the app modules.
-for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19]) __r(id);
+const channels = {
+    visible: { id: "visible", type: 0, guild_id: "g1", name: "general" },
+    secret: { id: "secret", type: 0, guild_id: "g1", name: "admins", topic: "staff only" },
+    dm: { id: "dm", type: 1 },
+};
+__d((g, r, d, a, module) => {
+    module.exports = { getName: () => "ChannelStore", getChannel: id => channels[id] };
+}, 20);
+__d((g, r, d, a, module) => {
+    module.exports = { Permissions: { VIEW_CHANNEL: 1024n, SEND_MESSAGES: 2048n } };
+}, 21);
+__d((g, r, d, a, module) => {
+    module.exports = { getChannelPermissions: () => 0n, can: (permission, channel) => channel?.id !== "secret" };
+}, 22);
+const navigated = [];
+__d((g, r, d, a, module) => {
+    module.exports = { transitionToGuild: (guildId, channelId) => navigated.push(channelId) };
+}, 23);
+const fetched = [];
+__d((g, r, d, a, module) => {
+    module.exports = { fetchMessages: ({ channelId }) => (fetched.push(channelId), Promise.resolve("real")) };
+}, 24);
+__d((g, r, d, a, module) => {
+    module.exports = { createPendingReply: reply => calls.push(["reply", reply.shouldMention]) };
+}, 25);
+__d((g, r, d, a, module) => {
+    module.exports = { canUseEmojisEverywhere: () => false, canUseAnimatedEmojis: () => false };
+}, 26);
+
+for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
 const { jzscord: vercors } = globalThis;
@@ -281,6 +314,78 @@ await run(vercorsCmd, { action: "disable", plugin: "PlatformIndicators" });
 calls.pop();
 assert.equal(rowFor("pcAndPhone").tagIconUrl, undefined);
 
+const enable = async (name, on = true) => {
+    await run(vercorsCmd, { action: on ? "enable" : "disable", plugin: name });
+    calls.pop();
+};
+
+// --- ShowHiddenChannels ---
+const perms = __r(22);
+assert.equal(perms.can(1024n, channels.secret), false);
+await enable("ShowHiddenChannels");
+assert.equal(perms.can(1024n, channels.secret), true, "hidden channel listed");
+assert.equal(perms.can(2048n, channels.secret), false, "other permissions untouched");
+__r(23).transitionToGuild("g1", "secret");
+assert.deepEqual(navigated, [], "can't open a hidden channel");
+__r(23).transitionToGuild("g1", "visible");
+assert.deepEqual(navigated, ["visible"]);
+assert.equal(await __r(24).fetchMessages({ channelId: "secret" }), undefined);
+assert.equal(await __r(24).fetchMessages({ channelId: "visible" }), "real");
+await enable("ShowHiddenChannels", false);
+assert.equal(perms.can(1024n, channels.secret), false);
+
+// --- FakeNitro ---
+assert.equal(__r(26).canUseAnimatedEmojis(), false);
+await enable("FakeNitro");
+assert.equal(__r(26).canUseAnimatedEmojis(), true);
+__r(2).sendMessage("visible", {
+    content: "yo <:ok:111> <a:dance:222> <:other:333>",
+    validNonShortcutEmojis: [
+        { id: "111", name: "ok", guildId: "g1", animated: false },
+        { id: "222", name: "dance", guildId: "g1", animated: true },
+        { id: "333", name: "other", guildId: "g2", animated: false },
+    ],
+});
+assert.equal(
+    calls.pop()[2],
+    "yo <:ok:111> https://cdn.discordapp.com/emojis/222.gif?size=48&quality=lossless&name=dance https://cdn.discordapp.com/emojis/333.webp?size=48&quality=lossless&name=other",
+);
+await enable("FakeNitro", false);
+
+// --- NoReplyMention ---
+await enable("NoReplyMention");
+__r(25).createPendingReply({ shouldMention: true });
+assert.deepEqual(calls.pop(), ["reply", false]);
+await enable("NoReplyMention", false);
+
+// --- ShowMeYourName & AlwaysAnimate ---
+const generate = author => new (__r(17).default)().generate({ message: { id: "y", author, avatarURL: "https://cdn/avatars/1/a_abc.png?size=64" } }).message;
+await enable("ShowMeYourName");
+assert.equal(generate({ id: "1", username: "vrai", globalName: "Affiché" }).username, "Affiché (vrai)");
+assert.equal(generate({ id: "1", username: "pareil" }).username, "pareil");
+await enable("ShowMeYourName", false);
+await enable("AlwaysAnimate");
+const animated = generate({ id: "1", username: "a" });
+assert.equal(animated.avatarURL, "https://cdn/avatars/1/a_abc.gif?size=64");
+assert.equal(animated.animateEmoji, true);
+await enable("AlwaysAnimate", false);
+
+// --- MessageLogger: edit history ---
+await enable("MessageLogger");
+dispatcher.dispatch({ type: "MESSAGE_UPDATE", message: { id: "m1", channel_id: "c1", content: "salut v2" } });
+assert.equal(dispatched.pop().message.content, "salut v2\n-# ✏️ salut");
+dispatcher.dispatch({ type: "MESSAGE_UPDATE", message: { id: "m1", channel_id: "c1", content: "salut v3" } });
+assert.equal(dispatched.pop().message.content, "salut v3\n-# ✏️ salut\n-# ✏️ salut v2");
+dispatcher.dispatch({ type: "MESSAGE_UPDATE", message: { id: "m1", channel_id: "c1", content: "salut v3" } });
+assert.equal(dispatched.pop().message.content, "salut v3\n-# ✏️ salut\n-# ✏️ salut v2", "repeated update keeps history");
+dispatcher.dispatch({ type: "MESSAGE_UPDATE", message: { id: "m1", channel_id: "c1", embeds: [] } });
+assert.equal(dispatched.pop().message.content, undefined, "embed-only update untouched");
+await enable("MessageLogger", false);
+
+// --- ClearURLs: TikTok ---
+__r(2).sendMessage("c1", { content: "https://www.tiktok.com/@a/video/1?is_from_webapp=1&sender_device=pc" });
+assert.deepEqual(calls.pop(), ["sendMessage", "c1", "https://www.tiktok.com/@a/video/1"]);
+
 // --- Experiments & MoreCommands ---
 await run(vercorsCmd, { action: "enable", plugin: "Experiments" });
 calls.pop();
@@ -297,6 +402,8 @@ await run(builtIns.find(c => c.name === "reverse"), { texte: "salut" });
 assert.deepEqual(calls.pop(), ["sendMessage", "c1", "tulas"]);
 await run(builtIns.find(c => c.name === "mock"), { texte: "bonjour" });
 assert.deepEqual(calls.pop(), ["sendMessage", "c1", "bOnJoUr"]);
+await run(builtIns.find(c => c.name === "timestamp"), { minutes: 0 });
+assert.match(calls.pop()[2], /^<t:\d+:F> \(<t:\d+:R>\)$/);
 
 TestRenderer.act(() => renderer.unmount());
 assert.ok(!logs.some(l => l.startsWith("[JZSCord] ") && /failed|threw/i.test(l) && !/eval/.test(l)), logs.filter(l => /failed|threw/i.test(l)).join("\n"));

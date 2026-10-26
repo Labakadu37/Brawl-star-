@@ -42,12 +42,17 @@ plugins.
 
 | Plugin | Par défaut | Ce qu'il fait |
 |---|---|---|
-| MessageLogger | ❌ | Garde tous les messages supprimés (même les tiens), surlignés en rouge ou marqués 🗑️, jusqu'au redémarrage |
+| MessageLogger | ❌ | Garde les messages supprimés (surlignés en rouge) et les anciennes versions des messages modifiés (✏️), jusqu'au redémarrage |
+| ShowHiddenChannels | ❌ | Affiche les salons auxquels tu n'as pas accès ; les ouvrir affiche juste leur nom et leur sujet |
 | PlatformIndicators | ❌ | Badge après le pseudo (icônes PC, téléphone, navigateur, console) dans la couleur du statut |
-| NoTrack | ✅ | Bloque les requêtes de télémétrie (`/science`, `/metrics`…) |
-| ClearURLs | ✅ | Retire `utm_*`, `fbclid`, `si`… des liens que tu envoies |
+| FakeNitro | ❌ | Emojis animés et d'autres serveurs sans Nitro (envoyés en image) |
+| ShowMeYourName | ❌ | « Surnom (pseudo) » dans le chat |
+| NoReplyMention | ❌ | Les réponses ne mentionnent plus la personne par défaut |
+| AlwaysAnimate | ❌ | Emojis, GIF et avatars animés toujours animés |
 | SilentTyping | ❌ | Les autres ne voient plus « est en train d'écrire… » |
-| MoreCommands | ❌ | `/lenny`, `/reverse`, `/mock`, `/owo`, `/upper`, `/lower`, `/flip`, `/roll` |
+| NoTrack | ✅ | Bloque les requêtes de télémétrie (`/science`, `/metrics`…) |
+| ClearURLs | ✅ | Retire `utm_*`, `fbclid`, `si`, les paramètres TikTok… des liens que tu envoies |
+| MoreCommands | ❌ | `/lenny`, `/reverse`, `/mock`, `/owo`, `/upper`, `/lower`, `/flip`, `/roll`, `/timestamp` |
 | Experiments | ❌ | Débloque le menu développeur / expériences de Discord |
 | DevTools | ❌ | Ajoute `/eval` pour explorer Discord (`jzscord.metro.findByProps(...)`) |
 

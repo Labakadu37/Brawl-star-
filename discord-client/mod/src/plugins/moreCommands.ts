@@ -13,7 +13,7 @@ const owo = (s: string) =>
 
 export default definePlugin({
     name: "MoreCommands",
-    description: "Ajoute /lenny, /reverse, /mock, /owo, /upper, /lower, /flip, /roll",
+    description: "Ajoute /lenny, /reverse, /mock, /owo, /upper, /lower, /flip, /roll, /timestamp",
     authors: ["JZSCord"],
     start({ registerCommand }) {
         registerCommand({ name: "lenny", description: "( ͡° ͜ʖ ͡°)", execute: () => "( ͡° ͜ʖ ͡°)" });
@@ -31,6 +31,15 @@ export default definePlugin({
             name: "flip",
             description: "Pile ou face (visible que par toi)",
             execute: (_, { reply }) => reply(Math.random() < 0.5 ? "🪙 Pile" : "🪙 Face"),
+        });
+        registerCommand({
+            name: "timestamp",
+            description: "Envoie une date que chacun voit dans son fuseau horaire",
+            options: [{ name: "minutes", description: "Dans combien de minutes (0 = maintenant)", type: OptionType.INTEGER }],
+            execute: ({ minutes }) => {
+                const unix = Math.floor(Date.now() / 1000) + 60 * (Number(minutes) || 0);
+                return `<t:${unix}:F> (<t:${unix}:R>)`;
+            },
         });
         registerCommand({
             name: "roll",

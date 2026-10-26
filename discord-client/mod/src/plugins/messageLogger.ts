@@ -6,6 +6,9 @@ import { getReactNative } from "../lib/react";
 
 const RED = "#f23f43";
 const deletedIds = new Set<string>();
+// Edited messages: the server's current text and the previous versions.
+const serverContent = new Map<string, string>();
+const previousVersions = new Map<string, string[]>();
 let highlightActive = false;
 
 const dispatcherFilter = filters.byProps("_interceptors", "dispatch");
@@ -36,9 +39,33 @@ function updateFor(channelId: string, id: string, guildId?: string) {
     };
 }
 
-/** Rewrites delete actions in place so the messages stay. */
+/** Keeps the previous text of an edited message under the new one. */
+function keepEditHistory(action: any) {
+    const update = action.message;
+    if (!update?.id || typeof update.content !== "string") return; // embed-only updates
+    const channelId = update.channel_id ?? action.channelId;
+    const stored = find(filters.byStoreName("MessageStore"))?.getMessage?.(channelId, update.id);
+    const current = serverContent.get(update.id) ?? stored?.content;
+    const versions = previousVersions.get(update.id) ?? [];
+    if (typeof current === "string" && current && current !== update.content) {
+        versions.push(current.replace(/\s*\n\s*/g, " "));
+        previousVersions.set(update.id, versions);
+    }
+    serverContent.set(update.id, update.content);
+    // Re-append on every update, or a repeated one would hide the history.
+    // "-#" is Discord's small grey subtext.
+    if (versions.length) update.content += versions.map(v => `\n-# ✏️ ${v}`).join("");
+}
+
+// The same action can reach both the interceptor and dispatch().
+const seen = new WeakSet<object>();
+
+/** Rewrites delete and edit actions in place so nothing is lost. */
 function rewrite(action: any) {
-    if (!action || action.__vercors) return;
+    if (!action || typeof action !== "object" || action.__vercors || seen.has(action)) return;
+    seen.add(action);
+
+    if (action.type === "MESSAGE_UPDATE") return keepEditHistory(action);
 
     if (action.type === "MESSAGE_DELETE") {
         const update = updateFor(action.channelId, action.id, action.guildId);
@@ -60,7 +87,7 @@ function rewrite(action: any) {
 
 export default definePlugin({
     name: "MessageLogger",
-    description: "Garde tous les messages supprimés (même les tiens), surlignés en rouge ou marqués 🗑️, jusqu'au redémarrage",
+    description: "Garde les messages supprimés (en rouge) et les anciennes versions des messages modifiés (✏️), jusqu'au redémarrage",
     authors: ["JZSCord"],
     start({ waitFor, before, after, cleanup }) {
         waitFor(dispatcherFilter, dispatcher => {
@@ -89,7 +116,11 @@ export default definePlugin({
                 result.backgroundHighlight = { backgroundColor: color(`${RED}33`), gutterColor: color(RED) };
             });
         });
-        cleanup(() => (highlightActive = false));
+        cleanup(() => {
+            highlightActive = false;
+            serverContent.clear();
+            previousVersions.clear();
+        });
 
         const timer = setTimeout(() => {
             if (!highlightActive) logger.warn("MessageLogger: RowManager not found, deleted messages get a 🗑️ marker");

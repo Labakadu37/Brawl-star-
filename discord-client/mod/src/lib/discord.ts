@@ -1,6 +1,6 @@
 // Discord modules used by the core, resolved lazily by their properties.
 
-import { findByProps } from "./metro";
+import { filters, find, findByProps } from "./metro";
 
 export const getMessageActions = () => findByProps("sendMessage", "editMessage");
 export const getClydeUtils = () => findByProps("sendBotMessage");
@@ -26,3 +26,13 @@ export function sendMessage(channelId: string, content: string) {
 export const isRowManager = (m: any) =>
     typeof m === "function" &&
     (m.name === "RowManager" || (typeof m.prototype?.generate === "function" && /row/i.test(m.name ?? "")));
+
+export const getChannel = (id: string) => find(filters.byStoreName("ChannelStore"))?.getChannel?.(id);
+export const getCurrentUser = () => find(filters.byStoreName("UserStore"))?.getCurrentUser?.();
+
+/** Android toast, for short feedback outside of a chat. */
+export function toast(message: string) {
+    try {
+        find(filters.byProps("show", "showWithGravity"))?.show(message, 0);
+    } catch {}
+}
