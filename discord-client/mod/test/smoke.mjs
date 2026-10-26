@@ -112,7 +112,7 @@ __d((g, r, d, a, module) => {
 __d((g, r, d, a, module) => {
     function RowManager() {}
     RowManager.prototype.generate = row => ({
-        message: { ...row.message, username: row.message.author ? row.message.author.username : undefined },
+        message: { ...row.message, username: row.message.author ? row.message.author.username : undefined, author: undefined },
     });
     module.exports = { __esModule: true, default: RowManager };
 }, 17);
@@ -255,18 +255,31 @@ assert.equal(dispatched.pop().type, "MESSAGE_DELETE", "off means deletes go thro
 assert.equal(dispatcher._interceptors.length, 0, "interceptor removed");
 
 // --- PlatformIndicators ---
-const nameFor = userId => new (__r(17).default)().generate({ message: { id: "x", author: { id: userId, username: "Pseudo" } } }).message.username;
-assert.equal(nameFor("pcAndPhone"), "Pseudo", "off by default");
+const rowFor = (userId, extra = {}) =>
+    new (__r(17).default)().generate({ message: { id: "x", author: { id: userId, username: "Pseudo" }, ...extra } }).message;
+assert.equal(rowFor("pcAndPhone").tagIconUrl, undefined, "off by default");
 await run(vercorsCmd, { action: "enable", plugin: "PlatformIndicators" });
 calls.pop();
-assert.equal(nameFor("pcAndPhone"), "Pseudo 🖥️📱");
-assert.equal(nameFor("web"), "Pseudo 🌐");
-assert.equal(nameFor("gone"), "Pseudo", "offline platforms are hidden");
-assert.equal(nameFor("unknown"), "Pseudo");
-assert.equal(nameFor("me"), "Pseudo 📱", "we are on a phone");
+const pcAndPhone = rowFor("pcAndPhone");
+assert.equal(pcAndPhone.username, "Pseudo", "no text added to the name");
+assert.equal(pcAndPhone.tagText, "\u200b");
+assert.equal(pcAndPhone.tagAccessibilityLabel, "PC, Téléphone");
+const png = Buffer.from(pcAndPhone.tagIconUrl.replace("data:image/png;base64,", ""), "base64");
+assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "a PNG");
+// The pixel data must inflate (valid zlib) to 48 rows of 1 filter byte + 48 pixels.
+const { inflateSync } = await import("node:zlib");
+const idat = png.indexOf(Buffer.from("IDAT"));
+const idatLength = png.readUInt32BE(idat - 4);
+assert.equal(inflateSync(png.subarray(idat + 4, idat + 4 + idatLength)).length, 48 * 49);
+assert.equal(rowFor("pcAndPhone").tagIconUrl, pcAndPhone.tagIconUrl, "icons are cached");
+assert.notEqual(rowFor("web").tagIconUrl, pcAndPhone.tagIconUrl);
+assert.equal(rowFor("gone").tagIconUrl, undefined, "offline platforms are hidden");
+assert.equal(rowFor("unknown").tagIconUrl, undefined);
+assert.ok(rowFor("me").tagIconUrl, "we are on a phone");
+assert.equal(rowFor("pcAndPhone", { tagText: "APP" }).tagText, "APP", "real tags are kept");
 await run(vercorsCmd, { action: "disable", plugin: "PlatformIndicators" });
 calls.pop();
-assert.equal(nameFor("pcAndPhone"), "Pseudo");
+assert.equal(rowFor("pcAndPhone").tagIconUrl, undefined);
 
 // --- Experiments & MoreCommands ---
 await run(vercorsCmd, { action: "enable", plugin: "Experiments" });
