@@ -18,3 +18,11 @@ export function sendMessage(channelId: string, content: string) {
         validNonShortcutEmojis: [],
     });
 }
+
+/**
+ * The class whose prototype.generate() builds each chat row (message, author
+ * name, colors) before the native chat list draws it.
+ */
+export const isRowManager = (m: any) =>
+    typeof m === "function" &&
+    (m.name === "RowManager" || (typeof m.prototype?.generate === "function" && /row/i.test(m.name ?? "")));

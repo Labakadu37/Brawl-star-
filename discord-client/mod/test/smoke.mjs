@@ -106,8 +106,14 @@ __d((g, r, d, a, module) => {
     module.exports = { getName: () => "UserStore", getCurrentUser: () => ({ id: "me" }) };
 }, 16);
 __d((g, r, d, a, module) => {
+    const clientStatuses = { pcAndPhone: { desktop: "online", mobile: "idle" }, web: { web: "dnd" }, gone: { desktop: "offline" } };
+    module.exports = { getName: () => "PresenceStore", getState: () => ({ clientStatuses }) };
+}, 19);
+__d((g, r, d, a, module) => {
     function RowManager() {}
-    RowManager.prototype.generate = row => ({ message: row.message });
+    RowManager.prototype.generate = row => ({
+        message: { ...row.message, username: row.message.author ? row.message.author.username : undefined },
+    });
     module.exports = { __esModule: true, default: RowManager };
 }, 17);
 __d((g, r, d, a, module) => {
@@ -120,7 +126,7 @@ __d((g, r, d, a, module) => {
 }, 18);
 
 // Boot order similar to Discord: react-native first, then the app modules.
-for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18]) __r(id);
+for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
 const { jzscord: vercors } = globalThis;
@@ -247,6 +253,20 @@ TestRenderer.act(() => switchFor("MessageLogger").props.onValueChange(false));
 dispatcher.dispatch({ type: "MESSAGE_DELETE", id: "m1", channelId: "c1" });
 assert.equal(dispatched.pop().type, "MESSAGE_DELETE", "off means deletes go through");
 assert.equal(dispatcher._interceptors.length, 0, "interceptor removed");
+
+// --- PlatformIndicators ---
+const nameFor = userId => new (__r(17).default)().generate({ message: { id: "x", author: { id: userId, username: "Pseudo" } } }).message.username;
+assert.equal(nameFor("pcAndPhone"), "Pseudo", "off by default");
+await run(vercorsCmd, { action: "enable", plugin: "PlatformIndicators" });
+calls.pop();
+assert.equal(nameFor("pcAndPhone"), "Pseudo 🖥️📱");
+assert.equal(nameFor("web"), "Pseudo 🌐");
+assert.equal(nameFor("gone"), "Pseudo", "offline platforms are hidden");
+assert.equal(nameFor("unknown"), "Pseudo");
+assert.equal(nameFor("me"), "Pseudo 📱", "we are on a phone");
+await run(vercorsCmd, { action: "disable", plugin: "PlatformIndicators" });
+calls.pop();
+assert.equal(nameFor("pcAndPhone"), "Pseudo");
 
 // --- Experiments & MoreCommands ---
 await run(vercorsCmd, { action: "enable", plugin: "Experiments" });

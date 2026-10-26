@@ -1,3 +1,4 @@
+import { isRowManager } from "../lib/discord";
 import { logger } from "../lib/logger";
 import { filters, find } from "../lib/metro";
 import { definePlugin } from "../lib/plugins";
@@ -79,9 +80,6 @@ export default definePlugin({
         });
 
         // Chat rows are built by RowManager.generate: color the deleted ones.
-        const isRowManager = (m: any) =>
-            typeof m === "function" &&
-            (m.name === "RowManager" || (typeof m.prototype?.generate === "function" && /row/i.test(m.name ?? "")));
         waitFor(isRowManager, RowManager => {
             highlightActive = true;
             after(RowManager.prototype, "generate", ([row], result) => {

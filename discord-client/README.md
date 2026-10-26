@@ -43,6 +43,7 @@ plugins.
 | Plugin | Par défaut | Ce qu'il fait |
 |---|---|---|
 | MessageLogger | ❌ | Garde tous les messages supprimés (même les tiens), surlignés en rouge ou marqués 🗑️, jusqu'au redémarrage |
+| PlatformIndicators | ❌ | Badge après le pseudo : 🖥️ PC, 📱 téléphone, 🌐 navigateur, 🎮 console |
 | NoTrack | ✅ | Bloque les requêtes de télémétrie (`/science`, `/metrics`…) |
 | ClearURLs | ✅ | Retire `utm_*`, `fbclid`, `si`… des liens que tu envoies |
 | SilentTyping | ❌ | Les autres ne voient plus « est en train d'écrire… » |
