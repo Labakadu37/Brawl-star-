@@ -155,6 +155,39 @@ export function waitFor(filter: Filter, callback: (exports: any) => void): () =>
     return () => listeners.delete(listener);
 }
 
+/** Like `waitFor`, but for every matching module, now and later, until cancelled. */
+export function waitForAll(filter: Filter, callback: (exports: any) => void): () => void {
+    findAll(filter).forEach(callback);
+    const listener: ModuleListener = (_id, exports) => {
+        const found = testExports(exports, filter);
+        if (found !== undefined) callback(found);
+    };
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+}
+
+/** Lists loaded modules whose property names contain `term`, to find what to patch. */
+export function searchKeys(term: string, limit = 15): string[] {
+    const needle = term.toLowerCase();
+    const results: string[] = [];
+    for (const [id, exports] of exportsCache) {
+        if (!isObjectLike(exports) || isBadExports(exports)) continue;
+        for (const [where, target] of [["", exports], [".default", exports.default]] as const) {
+            if (!isObjectLike(target) || isBadExports(target)) continue;
+            let keys: string[];
+            try {
+                keys = Object.keys(target);
+            } catch {
+                continue;
+            }
+            const matching = keys.filter(k => k.toLowerCase().includes(needle));
+            if (matching.length) results.push(`${id}${where}: ${matching.slice(0, 6).join(", ")}`);
+            if (results.length >= limit) return results;
+        }
+    }
+    return results;
+}
+
 export function getModuleStats() {
     return { defined: definedIds.size, initialized: exportsCache.size };
 }

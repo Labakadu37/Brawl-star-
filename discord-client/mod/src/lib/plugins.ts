@@ -1,6 +1,6 @@
 import { CommandDef, registerCommand } from "./commands";
 import { logger } from "./logger";
-import { Filter, waitFor } from "./metro";
+import { Filter, waitFor, waitForAll } from "./metro";
 import * as patcher from "./patcher";
 import { saveSettings, settings } from "./storage";
 
@@ -10,6 +10,8 @@ export interface PluginContext {
     after: (target: any, name: string, cb: patcher.AfterCallback) => void;
     instead: (target: any, name: string, cb: patcher.InsteadCallback) => void;
     waitFor: (filter: Filter, callback: (exports: any) => void) => void;
+    /** Calls `callback` for every module matching `filter`, including ones loaded later. */
+    waitForAll: (filter: Filter, callback: (exports: any) => void) => void;
     registerCommand: (def: CommandDef) => void;
 }
 
@@ -43,12 +45,18 @@ export function startPlugin(plugin: PluginDef) {
     if (cleanups.has(plugin.name)) return;
     const disposers: (() => void)[] = [];
     cleanups.set(plugin.name, disposers);
+    // Logs each module a plugin hooks into, so the journal shows what worked.
+    const found = (cb: (exports: any) => void) => (exports: any) => {
+        logger.log(`${plugin.name}: module found (${Object.keys(exports).slice(0, 4).join(", ")})`);
+        cb(exports);
+    };
 
     const ctx: PluginContext = {
         before: (t, n, cb) => void disposers.push(patcher.before(t, n, cb)),
         after: (t, n, cb) => void disposers.push(patcher.after(t, n, cb)),
         instead: (t, n, cb) => void disposers.push(patcher.instead(t, n, cb)),
-        waitFor: (filter, cb) => void disposers.push(waitFor(filter, cb)),
+        waitFor: (filter, cb) => void disposers.push(waitFor(filter, found(cb))),
+        waitForAll: (filter, cb) => void disposers.push(waitForAll(filter, found(cb))),
         registerCommand: def => void disposers.push(registerCommand(def)),
     };
     try {

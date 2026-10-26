@@ -2,7 +2,7 @@
 // screen, which would break on every Discord UI update.
 
 import { OptionType, registerCommand } from "./lib/commands";
-import { getModuleStats } from "./lib/metro";
+import { getModuleStats, searchKeys } from "./lib/metro";
 import { findPlugin, getPlugins, isRunning, setPluginEnabled } from "./lib/plugins";
 
 export function registerSettingsCommand() {
@@ -20,9 +20,10 @@ export function registerSettingsCommand() {
                     { name: "activer", value: "enable" },
                     { name: "désactiver", value: "disable" },
                     { name: "infos", value: "info" },
+                    { name: "chercher", value: "search" },
                 ],
             },
-            { name: "plugin", description: "Nom du plugin", type: OptionType.STRING },
+            { name: "plugin", description: "Nom du plugin (ou mot à chercher)", type: OptionType.STRING },
         ],
         execute({ action, plugin: pluginName }, { reply }) {
             if (action === "list") {
@@ -38,6 +39,13 @@ export function registerSettingsCommand() {
                         `Loader : ${loader ? `${loader.name} v${loader.version} (bundle ${loader.bundleSource})` : "inconnu"}\n` +
                         `Modules Discord : ${initialized} chargés / ${defined} définis`,
                 );
+                return;
+            }
+
+            if (action === "search") {
+                if (!pluginName) return reply("Indique un mot à chercher dans « plugin », par ex. typing");
+                const results = searchKeys(String(pluginName));
+                reply(results.length ? "```\n" + results.join("\n") + "\n```" : "Aucun module chargé ne contient ce mot.");
                 return;
             }
 

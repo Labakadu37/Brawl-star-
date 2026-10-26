@@ -110,6 +110,19 @@ calls.pop();
 __r(1).startTyping("c2");
 assert.deepEqual(calls.pop(), ["startTyping", "c2"]);
 
+// SilentTyping also blocks the typing request at the HTTP layer.
+await run(vercorsCmd, { action: "enable", plugin: "SilentTyping" });
+calls.pop();
+assert.equal((await __r(5).post({ url: "/channels/123/typing" })).status, 204);
+assert.equal((await __r(5).post({ url: "/science" })).status, 204);
+assert.equal((await __r(5).post({ url: "/channels/123/messages" })).real.url, "/channels/123/messages");
+await run(vercorsCmd, { action: "disable", plugin: "SilentTyping" });
+calls.pop();
+assert.equal((await __r(5).post({ url: "/channels/123/typing" })).real.url, "/channels/123/typing");
+
+await run(vercorsCmd, { action: "search", plugin: "typing" });
+assert.match(calls.pop()[2], /1: startTyping, stopTyping/);
+
 // DevTools adds /eval when enabled.
 await run(vercorsCmd, { action: "enable", plugin: "DevTools" });
 calls.pop();
@@ -125,6 +138,7 @@ assert.deepEqual(saved.plugins, {
     SilentTyping: { enabled: false },
     DevTools: { enabled: true },
 });
+assert.ok(logs.some(l => l.includes("SilentTyping: module found")));
 assert.ok(logs.some(l => l.includes("Metro define() captured")));
 assert.ok(logs.some(l => l.includes("Commands module found")));
 assert.ok(!logs.some(l => l.includes("not a function")), "proxy module must not match filters");
