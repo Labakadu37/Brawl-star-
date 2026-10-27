@@ -383,6 +383,7 @@ const plugin: PluginDef = definePlugin({
         // badge, it ends up creating an image whose URL contains the marker
         // from `icon`: rewrite that URL. Components that receive the badge id
         // (RenderedBadge, as in Revenge) also get our source and label.
+        let statusSamples = 0;
         const onCreate = ([Component]: any[], element: any) => {
             const props = element?.props;
             if (!props || typeof props !== "object") return;
@@ -394,7 +395,20 @@ const plugin: PluginDef = definePlugin({
                 "isMobileOnline" in props &&
                 getPluginOption(plugin, "avatarDot") === "icon"
             ) {
-                const status: string | undefined = props.status;
+                // Log the real prop values a few times: the dot always came out
+                // as desktop+dnd, so these aren't what we assumed.
+                if (statusSamples < 8) {
+                    statusSamples++;
+                    logger.log("Status props:", {
+                        status: props.status,
+                        typeofStatus: typeof props.status,
+                        isMobileOnline: props.isMobileOnline,
+                        isVROnline: props.isVROnline,
+                        streaming: props.streaming,
+                        size: props.size,
+                    });
+                }
+                const status: string | undefined = typeof props.status === "string" ? props.status : undefined;
                 const Image = getReactNative()?.Image;
                 if (status && status !== "offline" && status !== "invisible" && isComponent(Image)) {
                     const platform = props.isVROnline ? "embedded" : props.isMobileOnline ? "mobile" : "desktop";
