@@ -4,7 +4,7 @@ import { logger } from "../lib/logger";
 import { filters, find, waitForAll } from "../lib/metro";
 import { renderFramedPlatformIconBase64, renderPlatformIconBase64, renderPlatformIcons } from "../lib/platformIcons";
 import { definePlugin, getPluginOption, PluginDef } from "../lib/plugins";
-import { getReactNative } from "../lib/react";
+import { getReactNative, isComponent } from "../lib/react";
 
 // Keys of Discord's clientStatuses, in display order.
 const PLATFORMS = ["desktop", "mobile", "web", "embedded"];
@@ -248,6 +248,15 @@ const plugin: PluginDef = definePlugin({
                 { value: "one", label: "Un seul, le plus actif" },
             ],
         },
+        {
+            key: "avatarDot",
+            label: "Rond de statut sur l'avatar",
+            default: "icon",
+            choices: [
+                { value: "icon", label: "Icône plateforme (PC/mobile)" },
+                { value: "normal", label: "Rond normal de Discord" },
+            ],
+        },
     ],
     start({ waitFor, after, cleanup }) {
         const logged = new Set<string>();
@@ -374,17 +383,29 @@ const plugin: PluginDef = definePlugin({
         // badge, it ends up creating an image whose URL contains the marker
         // from `icon`: rewrite that URL. Components that receive the badge id
         // (RenderedBadge, as in Revenge) also get our source and label.
-        // Diagnostic: find the component that draws the status dot / mobile
-        // icon on avatars, to put our platform icon there later. Logs each
-        // matching component name once, with its prop names.
-        const STATUS_NAME = /status|presence|mobile|avatardecoration|onlineindicator/i;
         const onCreate = ([Component]: any[], element: any) => {
             const props = element?.props;
             if (!props || typeof props !== "object") return;
             const name = Component?.displayName ?? Component?.name;
-            if (typeof name === "string" && STATUS_NAME.test(name)) {
-                logOnce(`status-ish component ${name}`, Object.keys(props).join(","));
+
+            // Replace the avatar status dot with our platform icon.
+            if (
+                name === "Status" &&
+                "isMobileOnline" in props &&
+                getPluginOption(plugin, "avatarDot") === "icon"
+            ) {
+                const status: string | undefined = props.status;
+                const Image = getReactNative()?.Image;
+                if (status && status !== "offline" && status !== "invisible" && isComponent(Image)) {
+                    const platform = props.isVROnline ? "embedded" : props.isMobileOnline ? "mobile" : "desktop";
+                    const size = Math.round((props.size ?? 16) * 1.35);
+                    // Render our icon in place of Discord's dot (type/props swap).
+                    element.type = Image;
+                    element.props = { source: { uri: hostedIcon(platform, status) }, style: [props.style, { width: size, height: size }] };
+                }
+                return;
             }
+
             if (typeof props.id === "string" && props.id.startsWith("jzs-platform-")) {
                 logOnce(`badge drawn by ${Component?.displayName ?? Component?.name ?? typeof Component}`, Object.keys(props).join(","));
                 const ours = profileBadgeProps.get(props.id);

@@ -3,6 +3,7 @@ import { getLogHistory } from "../lib/logger";
 import { filters, find } from "../lib/metro";
 import { getPluginOption, getPlugins, isRunning, setPluginEnabled, setPluginOption } from "../lib/plugins";
 import { findComponent, getReactNative, h, isComponent, useEffect, useState } from "../lib/react";
+import { promptRestart, reloadDiscord } from "../lib/restart";
 
 const MUTED = "#949ba4";
 const TEXT = "#dbdee1";
@@ -78,6 +79,7 @@ export function PluginsPage() {
                         onValueChange={(enabled: boolean) => {
                             setPluginEnabled(plugin, enabled);
                             rerender(n => n + 1);
+                            promptRestart(`${plugin.name} ${enabled ? "activé" : "désactivé"}. Redémarre Discord pour que tout s'applique.`);
                         }}
                     />,
                     // Options of a running plugin: tap to go to the next choice.
@@ -97,6 +99,10 @@ export function PluginsPage() {
                         );
                     }),
                 ])}
+            </Group>
+            <Text style={{ height: 16 }} />
+            <Group title="Discord">
+                <Row label="🔄 Redémarrer Discord" onPress={() => reloadDiscord()} />
             </Group>
             <Text style={{ height: 16 }} />
             <Group title="Journal">

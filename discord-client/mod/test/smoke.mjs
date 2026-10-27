@@ -215,8 +215,16 @@ __d((g, r, d, a, module) => {
     }
     module.exports = { __esModule: true, default: useBadges };
 }, 31);
+let reloaded = 0;
+__d((g, r, d, a, module) => {
+    module.exports = { reload: () => reloaded++, getConstants: () => ({}) };
+}, 32);
+const alertsShown = [];
+__d((g, r, d, a, module) => {
+    module.exports = { openLazy: () => {}, close: () => {}, show: opts => alertsShown.push(opts) };
+}, 33);
 
-for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]) __r(id);
+for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
 const { jzcord: vercors } = globalThis;
@@ -434,8 +442,27 @@ assert.equal(optionRow().findByType("Text").props.children, "   ↳ Emplacement 
 TestRenderer.act(() => optionRow().props.onPress());
 assert.equal(optionRow().findByType("Text").props.children, "   ↳ Emplacement dans le chat : Tag de serveur");
 assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "clan");
-TestRenderer.act(() => page.unmount());
 vercors.plugins.setPluginOption(piPlugin, "slot", "auto");
+// The "Redémarrer Discord" button reloads the bundle.
+const reloadRow = page.root.findAll(n => n.type === "Pressable").find(p => /Redémarrer Discord/.test(p.findByType("Text").props.children));
+assert.ok(reloadRow, "restart button present");
+TestRenderer.act(() => reloadRow.props.onPress());
+assert.equal(reloaded, 1, "bundle reloaded");
+// Toggling a plugin shows the restart prompt with a Redémarrer button.
+alertsShown.length = 0;
+const pcSwitch = page.root.findAll(n => n.type === "Switch").find((_, i) => true);
+const silentSwitch = () =>
+    page.root.findAll(n => n.type === "View" && n.props.style?.flexDirection === "row")
+        .find(row => row.findAllByType("Text").some(t => t.props.children === "SilentTyping"))
+        .findByType("Switch");
+TestRenderer.act(() => silentSwitch().props.onValueChange(true));
+assert.equal(alertsShown.length, 1, "restart prompt shown on toggle");
+assert.equal(alertsShown[0].confirmText, "Redémarrer");
+reloaded = 0;
+alertsShown[0].onConfirm();
+assert.equal(reloaded, 1, "prompt's Redémarrer reloads");
+TestRenderer.act(() => silentSwitch().props.onValueChange(false));
+TestRenderer.act(() => page.unmount());
 
 // Live: a presence change rebuilds that user's messages in the open channel.
 dispatched.length = 0;
@@ -470,6 +497,20 @@ for (const platform of ["desktop", "mobile", "web", "embedded"])
         assert.ok(existsSync(new URL(`../../assets/badges/${platform}-${status}.png`, import.meta.url)), `${platform}-${status}.png`);
 assert.equal(shown.props.label, "Téléphone");
 assert.equal(__r(29).jsxs(RenderedBadge, { id: "real" }).props.source, undefined, "Discord's badges untouched");
+
+// The avatar status dot becomes our platform icon (status + isMobileOnline).
+function Status() {}
+const dotMobile = __r(29).jsx(Status, { status: "dnd", isMobileOnline: true, isVROnline: false, size: 16, style: { position: "absolute" } });
+assert.match(dotMobile.props.source.uri, /\/assets\/badges\/mobile-dnd\.png$/);
+assert.ok(dotMobile.props.style.some(s => s && s.width > 16), "sized up from the dot");
+const dotPc = __r(29).jsx(Status, { status: "online", isMobileOnline: false, size: 16 });
+assert.match(dotPc.props.source.uri, /\/assets\/badges\/desktop-online\.png$/);
+// Offline / unknown stays Discord's normal dot.
+assert.equal(__r(29).jsx(Status, { status: "offline", isMobileOnline: false }).type, Status);
+// The "normal" choice leaves the dot alone.
+vercors.plugins.setPluginOption(piPlugin, "avatarDot", "normal");
+assert.equal(__r(29).jsx(Status, { status: "online", isMobileOnline: false }).type, Status);
+vercors.plugins.setPluginOption(piPlugin, "avatarDot", "icon");
 // Whatever component draws it, the image Discord builds from our badge's
 // `icon` gets our URL (jsx runtime and classic createElement).
 assert.equal(badges[1].icon, "jzs_platform_mobile_idle");
