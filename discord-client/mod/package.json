@@ -1,6 +1,6 @@
 {
   "name": "jzcord",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": true,
   "description": "Vencord-style client mod for the official Discord Android app",
   "license": "GPL-3.0-or-later",

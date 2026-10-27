@@ -68,7 +68,10 @@ __d((g, r, d, a, module) => {
     };
 }, 2);
 __d((g, r, d, a, module) => {
-    module.exports = { getBuiltInCommands: () => [{ name: "shrug" }] };
+    module.exports = {
+        BUILT_IN_SECTIONS: { "-1": { id: "-1", type: 1, name: "Intégré" } },
+        getBuiltInCommands: () => [{ name: "shrug", applicationId: "-1" }],
+    };
 }, 3);
 __d((g, r, d, a, module) => {
     module.exports = { sendBotMessage: (channelId, content) => calls.push(["bot", channelId, content]) };
@@ -241,7 +244,13 @@ assert.equal((await __r(5).post({ url: "/channels/1/messages" })).real.url, "/ch
 const commands = __r(3).getBuiltInCommands(1);
 assert.equal(commands[0].name, "shrug");
 const vercorsCmd = commands.find(c => c.name === "jzcord");
-assert.ok(vercorsCmd, "/vercors registered");
+assert.ok(vercorsCmd, "/jzcord registered");
+// Our commands go in a "JZCord" section headed by our logo, not Built-In.
+const section = __r(3).BUILT_IN_SECTIONS.jzcord;
+assert.equal(section.name, "JZCord");
+assert.match(section.icon, /jzcord\.png$/);
+assert.equal(section.type, 1, "section shape cloned from a real one");
+assert.equal(vercorsCmd.applicationId, "jzcord");
 assert.match(vercorsCmd.id, /^-\d+$/);
 assert.equal(vercorsCmd.untranslatedName, "jzcord");
 assert.ok(!__r(3).getBuiltInCommands(2).some(c => c.name === "jzcord"), "filtered by command type");
