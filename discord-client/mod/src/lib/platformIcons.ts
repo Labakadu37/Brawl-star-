@@ -1,7 +1,7 @@
 // Vencord-style platform icons (monitor, phone, globe, controller), drawn at
 // runtime in the status color and encoded as PNG data URIs.
 
-import { encodePalettePng, pngBase64, pngDataUri } from "./png";
+import { encodePalettePng, encodeRgbaPng, pngBase64, pngDataUri } from "./png";
 
 type Shape = (x: number, y: number) => boolean;
 
@@ -106,4 +106,46 @@ export function renderPlatformIconBase64(platform: string, status: string): stri
 /** Base64 PNG, for writing to a file served as file://. */
 export function renderPlatformIconsBase64(entries: [string, string][]): string {
     return pngBase64(renderPlatformIconsPng(entries));
+}
+
+// The grey of Discord's tag pills, for slots that don't draw a frame.
+const FRAME_COLOR = [128, 132, 142];
+const FRAME_ALPHA = 0.3;
+const frameShape = rect(0, 0, 24, 24, 5.5);
+
+/**
+ * One platform icon inside a grey rounded frame, like Discord's tag pills, for
+ * the role icon slot which shows the image bare (and bigger than the pills).
+ */
+export function renderFramedPlatformIconBase64(platform: string, status: string): string {
+    const icon = ICONS[platform] ?? ICONS.desktop;
+    const color = hex(STATUS_COLORS[status] ?? STATUS_COLORS.online);
+    const inset = SIZE * 0.17;
+    const inner = SIZE - 2 * inset;
+    const samples = SAMPLES * SAMPLES;
+    const rgba: number[] = [];
+    for (let py = 0; py < SIZE; py++) {
+        for (let px = 0; px < SIZE; px++) {
+            let frameHits = 0;
+            let iconHits = 0;
+            for (let sy = 0; sy < SAMPLES; sy++) {
+                for (let sx = 0; sx < SAMPLES; sx++) {
+                    const x = px + (sx + 0.5) / SAMPLES;
+                    const y = py + (sy + 0.5) / SAMPLES;
+                    if (frameShape((x / SIZE) * 24, (y / SIZE) * 24)) frameHits++;
+                    if (icon(((x - inset) / inner) * 24, ((y - inset) / inner) * 24)) iconHits++;
+                }
+            }
+            // Icon drawn over the frame ("over" compositing, straight alpha).
+            const iconAlpha = iconHits / samples;
+            const frameAlpha = (FRAME_ALPHA * frameHits) / samples;
+            const alpha = iconAlpha + frameAlpha * (1 - iconAlpha);
+            for (let c = 0; c < 3; c++) {
+                const value = alpha ? (color[c] * iconAlpha + FRAME_COLOR[c] * frameAlpha * (1 - iconAlpha)) / alpha : 0;
+                rgba.push(Math.round(value));
+            }
+            rgba.push(Math.round(alpha * 255));
+        }
+    }
+    return pngBase64(encodeRgbaPng(SIZE, SIZE, rgba));
 }

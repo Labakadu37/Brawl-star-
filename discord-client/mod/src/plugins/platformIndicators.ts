@@ -2,7 +2,7 @@ import { getChannel, isRowManager } from "../lib/discord";
 import { writeBase64File } from "../lib/fs";
 import { logger } from "../lib/logger";
 import { filters, find, waitForAll } from "../lib/metro";
-import { renderPlatformIconBase64, renderPlatformIcons } from "../lib/platformIcons";
+import { renderFramedPlatformIconBase64, renderPlatformIconBase64, renderPlatformIcons } from "../lib/platformIcons";
 import { definePlugin, getPluginOption, PluginDef } from "../lib/plugins";
 import { getReactNative } from "../lib/react";
 
@@ -31,6 +31,28 @@ function ownStatuses(): Record<string, string> | undefined {
     return Object.keys(statuses).length ? statuses : undefined;
 }
 
+/**
+ * Discord mobile doesn't always keep other users' per-device statuses. It
+ * still knows their status and whether they're on mobile: use that, and count
+ * any other device as a PC.
+ */
+let loggedEstimate = false;
+
+function estimatedStatuses(presences: any, userId: string): Record<string, string> | undefined {
+    const status = presences?.getStatus?.(userId);
+    const mobile = presences?.isMobileOnline?.(userId);
+    if (!loggedEstimate) {
+        loggedEstimate = true;
+        logger.log("PlatformIndicators: no per-device status for others, estimating:", {
+            status,
+            isMobileOnline: mobile,
+            stateKeys: Object.keys(presences?.getState?.() ?? {}).join(","),
+        });
+    }
+    if (!status || status === "offline" || status === "invisible") return undefined;
+    return mobile ? { mobile: status } : { desktop: status };
+}
+
 /** [platform, status] pairs for a user, e.g. [["desktop", "online"], ["mobile", "dnd"]]. */
 function platformsOf(userId: string): [string, string][] {
     let statuses: Record<string, string> | undefined;
@@ -40,6 +62,7 @@ function platformsOf(userId: string): [string, string][] {
     } else {
         const presences = store("PresenceStore");
         statuses = presences?.getClientStatus?.(userId) ?? presences?.getState?.()?.clientStatuses?.[userId];
+        if (!statuses || !Object.keys(statuses).length) statuses = estimatedStatuses(presences, userId);
     }
     if (!statuses) return [];
     return PLATFORMS.filter(p => statuses[p] && statuses[p] !== "offline").map(p => [p, statuses[p]]);
@@ -57,6 +80,10 @@ function cachedIcon(name: string, base64: () => string, dataUri: () => string): 
     }
     return uri;
 }
+
+/** Same, inside a grey frame, for the role icon slot which draws none. */
+const framedIcon = (platform: string, status: string) =>
+    cachedIcon(`framed-${platform}-${status}`, () => renderFramedPlatformIconBase64(platform, status), () => renderPlatformIcons([[platform, status]]));
 
 /** One platform's icon, in its status color, filling the image. */
 const singleIcon = (platform: string, status: string) =>
@@ -82,9 +109,11 @@ function byActivity(platforms: [string, string][]): [string, string][] {
 // --- Chat ---
 
 // Places next to the name in a chat row where an image can go. The first
-// three are drawn in color; the APP tag slot tints its icon white.
+// three are drawn in color; the APP tag slot tints its icon white. The role
+// icon shows the image bigger (we draw its frame); the others are pills with
+// a small icon.
 type Slot = "clan" | "role" | "lobby" | "tag";
-const COLOR_SLOTS: Slot[] = ["clan", "role", "lobby"];
+const COLOR_SLOTS: Slot[] = ["role", "clan", "lobby"];
 
 // A real role icon, copied to build ours with the exact shape Discord expects.
 let roleIconTemplate: any;
@@ -146,17 +175,17 @@ function place(slot: Slot, message: any, icon: string, label: string) {
  * first, then the free color slots. Devices never share a badge; with fewer
  * slots than devices, the most active ones are shown (the profile shows all).
  */
-function decorateRow(message: any, platforms: [string, string][], chosen: Slot | "auto"): Slot[] {
+function decorateRow(message: any, platforms: [string, string][], chosen: Slot | "auto", onlyOne: boolean): Slot[] {
     const preferred = chosen === "auto" ? COLOR_SLOTS : [chosen, ...COLOR_SLOTS.filter(slot => slot !== chosen)];
     let slots = preferred.filter(slot => isFree(slot, message));
     // No color slot left: the white APP tag beats no badge at all.
     if (!slots.length && isFree("tag", message)) slots = ["tag"];
 
-    const devices = byActivity(platforms);
+    const devices = byActivity(platforms).slice(0, onlyOne ? 1 : undefined);
     const used = slots.slice(0, devices.length);
     used.forEach((slot, i) => {
         const [platform, status] = devices[i];
-        place(slot, message, singleIcon(platform, status), LABELS[platform]);
+        place(slot, message, slot === "role" ? framedIcon(platform, status) : singleIcon(platform, status), LABELS[platform]);
     });
     return used;
 }
@@ -206,6 +235,15 @@ const plugin: PluginDef = definePlugin({
                 { value: "tag", label: "Étiquette APP (blanc)" },
             ],
         },
+        {
+            key: "devices",
+            label: "Appareils dans le chat",
+            default: "all",
+            choices: [
+                { value: "all", label: "Tous (un badge chacun)" },
+                { value: "one", label: "Un seul, le plus actif" },
+            ],
+        },
     ],
     start({ waitFor, after, cleanup }) {
         const logged = new Set<string>();
@@ -231,8 +269,21 @@ const plugin: PluginDef = definePlugin({
                 if (message.clanTag) logOnce("real clan tag", { clanTag: message.clanTag, clanBadgeUrl: message.clanBadgeUrl });
 
                 const platforms = platformsOf(author.id);
-                if (!platforms.length) return;
-                const used = decorateRow(message, platforms, getPluginOption(plugin, "slot") as Slot | "auto");
+                if (!platforms.length) {
+                    // Learn what Discord mobile knows about others' presence.
+                    if (author.id !== currentUserId()) {
+                        const presences = store("PresenceStore");
+                        logOnce("no platforms for others", {
+                            status: presences?.getStatus?.(author.id),
+                            clientStatus: presences?.getClientStatus?.(author.id),
+                            isMobileOnline: presences?.isMobileOnline?.(author.id),
+                            stateKeys: Object.keys(presences?.getState?.() ?? {}).join(","),
+                        });
+                    }
+                    return;
+                }
+                const onlyOne = getPluginOption(plugin, "devices") === "one";
+                const used = decorateRow(message, platforms, getPluginOption(plugin, "slot") as Slot | "auto", onlyOne);
                 if (used.length) logOnce(`slots ${used.join("+")}`, author.id);
             });
         });

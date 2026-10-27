@@ -129,6 +129,9 @@ __d((g, r, d, a, module) => {
         getName: () => "PresenceStore",
         getState: () => ({ clientStatuses }),
         getClientStatus: id => clientStatuses[id],
+        // Users Discord mobile has no per-device status for.
+        getStatus: id => ({ estMobile: "dnd", estPc: "online", estGone: "offline" })[id],
+        isMobileOnline: id => id === "estMobile",
     };
 }, 19);
 __d((g, r, d, a, module) => {
@@ -368,6 +371,11 @@ assert.equal(rowFor("unknown").clanBadgeUrl, undefined);
 // Our own platforms come from our sessions (desktop + mobile, best status each).
 const me = rowFor("me");
 assert.ok(me.clanBadgeUrl.includes("one-desktop-online") && me.lobbyTagIconUrl.includes("one-mobile-online"));
+// Without per-device statuses, others are estimated from status + isMobileOnline.
+assert.ok(rowFor("estMobile").clanBadgeUrl.includes("platform-one-mobile-dnd"));
+assert.ok(rowFor("estPc").clanBadgeUrl.includes("platform-one-desktop-online"));
+assert.equal(rowFor("estGone").clanBadgeUrl, undefined);
+assert.ok(logs.some(l => l.includes("no per-device status for others")));
 const bot = new (__r(17).default)().generate({ message: { id: "b", author: { id: "pcAndPhone", username: "Bot", bot: true } } });
 assert.equal(bot.message.clanBadgeUrl, undefined, "no badges on bots");
 // Someone showing a server tag keeps it. One color slot left: devices never
@@ -382,17 +390,31 @@ assert.ok(rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x" }).tagIco
 assert.equal(rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x", tagText: "APP" }).tagText, "APP", "real app tags are kept");
 // Once a real role icon is seen, ours copies its shape.
 rowFor("pcAndPhone", { clanTag: "JZBS", roleIcon: { source: { uri: "https://cdn/role.png" }, name: "Mask", size: 20 } });
+// The role icon slot comes first: it shows the image big, so ours is framed.
 const withRole = rowFor("pcAndPhone", { clanTag: "JZBS" });
-assert.deepEqual(withRole.roleIcon, { source: { uri: pcAndPhone.clanBadgeUrl }, name: "Mask", size: 20 });
+assert.equal(withRole.roleIcon.name, "Mask");
+assert.equal(withRole.roleIcon.size, 20);
+assert.ok(withRole.roleIcon.source.uri.startsWith("file:///docs/vercors/platform-framed-desktop-online"), withRole.roleIcon.source.uri);
 assert.equal(withRole.lobbyTagIconUrl, pcAndPhone.lobbyTagIconUrl);
+await new Promise(r => setTimeout(r, 5));
+const framedPng = fileOf(withRole.roleIcon.source.uri);
+assert.equal(framedPng.readUInt8(25), 6, "framed icon is a truecolor+alpha PNG");
+assert.equal(inflateSync(framedPng.subarray(framedPng.indexOf(Buffer.from("IDAT")) + 4, framedPng.length - 12)).length, 64 * (64 * 4 + 1));
+// "One device" option: only the most active one, in the big slot.
+const piPlugin = vercors.plugins.findPlugin("PlatformIndicators");
+vercors.plugins.setPluginOption(piPlugin, "devices", "one");
+const onlyOne = rowFor("pcAndPhone");
+assert.ok(onlyOne.roleIcon.source.uri.includes("framed-desktop-online"));
+assert.equal(onlyOne.clanTag, undefined);
+assert.equal(onlyOne.lobbyTagIconUrl, undefined);
+vercors.plugins.setPluginOption(piPlugin, "devices", "all");
 
 // A slot chosen in the settings is used first; applies right away.
-const piPlugin = vercors.plugins.findPlugin("PlatformIndicators");
 assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "auto");
 vercors.plugins.setPluginOption(piPlugin, "slot", "tag");
 const inTag = rowFor("pcAndPhone");
 assert.ok(inTag.tagIconUrl.includes("platform-one-desktop-online"));
-assert.ok(inTag.clanBadgeUrl.includes("platform-one-mobile-idle"), "the next device in the next slot");
+assert.ok(inTag.roleIcon.source.uri.includes("platform-framed-mobile-idle"), "the next device in the next slot");
 vercors.plugins.setPluginOption(piPlugin, "slot", "bogus");
 assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "auto", "unknown values fall back to the default");
 vercors.plugins.setPluginOption(piPlugin, "slot", "auto");

@@ -23,8 +23,8 @@ android {
         applicationId = "dev.vercors.xposed"
         minSdk = 24
         targetSdk = 34
-        versionCode = 19
-        versionName = "0.7.1"
+        versionCode = 20
+        versionName = "0.7.2"
     }
 
     buildTypes {

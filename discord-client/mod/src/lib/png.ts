@@ -69,5 +69,20 @@ export function encodePalettePng(width: number, height: number, pixels: number[]
     ];
 }
 
+/** Encodes a truecolor image; `rgba` holds 4 bytes per pixel, row by row. */
+export function encodeRgbaPng(width: number, height: number, rgba: number[]): number[] {
+    const raw: number[] = [];
+    for (let y = 0; y < height; y++) {
+        raw.push(0);
+        for (let i = y * width * 4; i < (y + 1) * width * 4; i++) raw.push(rgba[i]);
+    }
+    return [
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        ...chunk("IHDR", [...u32(width), ...u32(height), 8, 6, 0, 0, 0]),
+        ...chunk("IDAT", zlibStore(raw)),
+        ...chunk("IEND", []),
+    ];
+}
+
 export const pngBase64 = (png: number[]) => base64(png);
 export const pngDataUri = (png: number[]) => `data:image/png;base64,${pngBase64(png)}`;
