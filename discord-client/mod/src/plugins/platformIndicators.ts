@@ -1,8 +1,8 @@
-import { isRowManager } from "../lib/discord";
+import { getChannel, isRowManager } from "../lib/discord";
 import { writeBase64File } from "../lib/fs";
 import { logger } from "../lib/logger";
 import { filters, find } from "../lib/metro";
-import { renderPlatformIcons, renderPlatformIconsBase64 } from "../lib/platformIcons";
+import { renderPlatformIconBase64, renderPlatformIcons, renderPlatformIconsBase64 } from "../lib/platformIcons";
 import { definePlugin, getPluginOption, PluginDef } from "../lib/plugins";
 import { getReactNative } from "../lib/react";
 
@@ -10,12 +10,13 @@ import { getReactNative } from "../lib/react";
 const PLATFORMS = ["desktop", "mobile", "web", "embedded"];
 const LABELS: Record<string, string> = { desktop: "PC", mobile: "Téléphone", web: "Navigateur", embedded: "Console" };
 
-const iconCache = new Map<string, string>();
+const store = (name: string) => find(filters.byStoreName(name));
+const currentUserId = (): string | undefined => store("UserStore")?.getCurrentUser?.()?.id;
 
 // Our own platforms aren't in PresenceStore; like Vencord, read them from our
 // open sessions (one per device), keeping the most active status per client.
 function ownStatuses(): Record<string, string> | undefined {
-    const sessions = find(filters.byStoreName("SessionsStore"))?.getSessions?.();
+    const sessions = store("SessionsStore")?.getSessions?.();
     if (!sessions || typeof sessions !== "object") return undefined;
     const rank = (status: string) => ["online", "idle", "dnd"].indexOf(status);
     const statuses: Record<string, string> = {};
@@ -30,35 +31,47 @@ function ownStatuses(): Record<string, string> | undefined {
     return Object.keys(statuses).length ? statuses : undefined;
 }
 
+/** [platform, status] pairs for a user, e.g. [["desktop", "online"], ["mobile", "dnd"]]. */
 function platformsOf(userId: string): [string, string][] {
     let statuses: Record<string, string> | undefined;
-    if (userId === find(filters.byStoreName("UserStore"))?.getCurrentUser?.()?.id) {
+    if (userId === currentUserId()) {
         // Fallback when sessions are unavailable: we're on a phone right now.
         statuses = ownStatuses() ?? { mobile: "online" };
     } else {
-        const presences = find(filters.byStoreName("PresenceStore"));
+        const presences = store("PresenceStore");
         statuses = presences?.getClientStatus?.(userId) ?? presences?.getState?.()?.clientStatuses?.[userId];
     }
     if (!statuses) return [];
     return PLATFORMS.filter(p => statuses[p] && statuses[p] !== "offline").map(p => [p, statuses[p]]);
 }
 
-function iconFor(platforms: [string, string][]): string {
-    const key = platforms.map(p => p.join(":")).join(",");
-    let uri = iconCache.get(key);
+// Icons are written once to files: the badge image loaders take file:// URLs
+// but not data: URIs.
+const iconCache = new Map<string, string>();
+
+function cachedIcon(name: string, base64: () => string, dataUri: () => string): string {
+    let uri = iconCache.get(name);
     if (!uri) {
-        // Prefer a file:// URL: the tag/badge image loader doesn't take data: URIs.
-        const fileName = `platform-v2-${key.replace(/[^a-z0-9]/gi, "_")}.png`;
-        uri = writeBase64File(fileName, renderPlatformIconsBase64(platforms)) ?? renderPlatformIcons(platforms);
-        iconCache.set(key, uri);
+        uri = writeBase64File(`platform-${name.replace(/[^a-z0-9-]/gi, "_")}.png`, base64()) ?? dataUri();
+        iconCache.set(name, uri);
     }
     return uri;
 }
 
-// Places next to the name where a row can show an image. Which ones Discord
-// draws in color, and for whom, depends on the build: the user picks.
+/** One platform's icon, in its status color, filling the image. */
+const singleIcon = (platform: string, status: string) =>
+    cachedIcon(`one-${platform}-${status}`, () => renderPlatformIconBase64(platform, status), () => renderPlatformIcons([[platform, status]]));
+
+/** Several platforms side by side in one image, when there aren't enough slots. */
+const combinedIcon = (platforms: [string, string][]) =>
+    cachedIcon(`v3-${platforms.map(p => p.join("_")).join("-")}`, () => renderPlatformIconsBase64(platforms), () => renderPlatformIcons(platforms));
+
+// --- Chat ---
+
+// Places next to the name in a chat row where an image can go. The first
+// three are drawn in color; the APP tag slot tints its icon white.
 type Slot = "clan" | "role" | "lobby" | "tag";
-const AUTO_ORDER: Slot[] = ["clan", "role", "lobby", "tag"];
+const COLOR_SLOTS: Slot[] = ["clan", "role", "lobby"];
 
 // A real role icon, copied to build ours with the exact shape Discord expects.
 let roleIconTemplate: any;
@@ -74,27 +87,35 @@ function withUrl(template: any, url: string): any {
     return template;
 }
 
-/** Puts the badge in `slot`; false if that slot is taken or unusable here. */
-function place(slot: Slot, message: any, icon: string, label: string): boolean {
+function isFree(slot: Slot, message: any): boolean {
     switch (slot) {
         case "clan":
-            if (message.clanTag) return false;
+            return !message.clanTag;
+        case "role":
+            return !message.roleIcon && !!roleIconTemplate;
+        case "lobby":
+            return !message.lobbyTagIconUrl;
+        case "tag":
+            return !message.tagText;
+    }
+}
+
+function place(slot: Slot, message: any, icon: string, label: string) {
+    switch (slot) {
+        case "clan":
             message.clanTag = "​";
             message.clanBadgeUrl = icon;
             // A server tag without a server may not be drawn at all.
             message.clanTagGuildId = message.guildId ?? message.clanTagGuildId;
-            return true;
+            break;
         case "role":
-            if (message.roleIcon || !roleIconTemplate) return false;
             message.roleIcon = withUrl(roleIconTemplate, icon);
-            return true;
+            break;
         case "lobby":
-            if (message.lobbyTagIconUrl) return false;
             message.lobbyTagIconUrl = icon;
             message.lobbyAdditionalName = message.lobbyAdditionalName ?? "​";
-            return true;
+            break;
         case "tag": {
-            if (message.tagText) return false;
             const processColor = getReactNative()?.processColor;
             message.tagText = "​";
             message.tagIconUrl = icon;
@@ -102,22 +123,78 @@ function place(slot: Slot, message: any, icon: string, label: string): boolean {
             message.tagBackgroundColor = processColor?.("rgba(128,132,142,0.25)") ?? 0x4080848e;
             message.tagTextColor = processColor?.("rgba(0,0,0,0)") ?? 0;
             message.tagAccessibilityLabel = label;
-            return true;
+            break;
         }
     }
 }
 
+/**
+ * One badge per platform, each in its own free color slot. With more platforms
+ * than free slots, the last slot shows the rest together. A slot chosen in the
+ * settings gets them all, together.
+ */
+function decorateRow(message: any, platforms: [string, string][], chosen: Slot | "auto"): Slot[] {
+    const label = platforms.map(([p]) => LABELS[p]).join(", ");
+    if (chosen !== "auto" && isFree(chosen, message)) {
+        place(chosen, message, platforms.length === 1 ? singleIcon(...platforms[0]) : combinedIcon(platforms), label);
+        return [chosen];
+    }
+
+    const slots = COLOR_SLOTS.filter(slot => isFree(slot, message));
+    if (!slots.length) {
+        if (!isFree("tag", message)) return [];
+        place("tag", message, combinedIcon(platforms), label);
+        return ["tag"];
+    }
+    const used = slots.slice(0, platforms.length);
+    used.forEach((slot, i) => {
+        const isLast = i === used.length - 1;
+        const rest = isLast ? platforms.slice(i) : [platforms[i]];
+        const icon = rest.length === 1 ? singleIcon(...rest[0]) : combinedIcon(rest);
+        place(slot, message, icon, rest.map(([p]) => LABELS[p]).join(", "));
+    });
+    return used;
+}
+
+/**
+ * Chat rows are only rebuilt when their message changes, so after presence
+ * updates, ask Discord to rebuild the visible messages of those users.
+ */
+function refreshMessagesOf(userIds: Set<string>) {
+    const channelId = store("SelectedChannelStore")?.getChannelId?.();
+    if (!channelId) return;
+    const messages = store("MessageStore")?.getMessages?.(channelId);
+    const list: any[] = messages?.toArray?.() ?? messages?._array ?? [];
+    const dispatcher = find(filters.byProps("_interceptors", "dispatch"));
+    const guildId = getChannel(channelId)?.guild_id;
+    for (const message of list.slice(-50)) {
+        if (!userIds.has(message?.author?.id)) continue;
+        dispatcher?.dispatch({
+            type: "MESSAGE_UPDATE",
+            message: { id: message.id, channel_id: channelId, guild_id: guildId, content: message.content },
+            // Marks our own actions, so MessageLogger leaves them alone.
+            __vercors: true,
+        });
+    }
+}
+
+// --- Profile ---
+
+// Props for our profile badges, keyed by badge id, applied when Discord
+// renders them (RenderedBadge only knows how to show Discord's own icons).
+const profileBadgeProps = new Map<string, Record<string, unknown>>();
+
 const plugin: PluginDef = definePlugin({
     name: "PlatformIndicators",
-    description: "Badge à côté du pseudo : PC, téléphone, navigateur ou console, en couleur du statut",
+    description: "Badges PC, téléphone, navigateur ou console, en couleur du statut, dans le chat et les profils",
     authors: ["JZSCord"],
     options: [
         {
             key: "slot",
-            label: "Emplacement",
+            label: "Emplacement dans le chat",
             default: "auto",
             choices: [
-                { value: "auto", label: "Auto" },
+                { value: "auto", label: "Auto (un badge par appareil)" },
                 { value: "clan", label: "Tag de serveur" },
                 { value: "role", label: "Icône de rôle" },
                 { value: "lobby", label: "Tag de lobby" },
@@ -125,42 +202,106 @@ const plugin: PluginDef = definePlugin({
             ],
         },
     ],
-    start({ waitFor, after }) {
+    start({ waitFor, after, cleanup }) {
         const logged = new Set<string>();
-        // Logs one real example of a row field, to learn how Discord fills it.
+        // Logs one example of something, to learn how this Discord build works.
         const logOnce = (what: string, value: unknown) => {
             if (logged.has(what)) return;
             logged.add(what);
             logger.log(`PlatformIndicators: ${what}:`, value);
         };
 
+        // Chat rows.
         waitFor(isRowManager, RowManager => {
             after(RowManager.prototype, "generate", ([row], result) => {
                 const author = row?.message?.author;
                 const message = result?.message;
                 // Only rows showing the author's name (first message of a group).
-                if (!author?.id || !message || typeof message.username !== "string" || !message.username) return;
+                if (!author?.id || author.bot || !message || typeof message.username !== "string" || !message.username) return;
 
-                if (message.clanTag) logOnce("real clan tag", { clanTag: message.clanTag, clanBadgeUrl: message.clanBadgeUrl, clanTagGuildId: message.clanTagGuildId });
                 if (message.roleIcon) {
                     roleIconTemplate ??= message.roleIcon;
                     logOnce("real role icon", message.roleIcon);
                 }
-                if (message.tagText) logOnce("real tag", { tagText: message.tagText, tagIconUrl: message.tagIconUrl, tagVerified: message.tagVerified });
-                if (message.lobbyTagIconUrl) logOnce("real lobby tag", { lobbyTagIconUrl: message.lobbyTagIconUrl, lobbyAdditionalName: message.lobbyAdditionalName });
+                if (message.clanTag) logOnce("real clan tag", { clanTag: message.clanTag, clanBadgeUrl: message.clanBadgeUrl });
 
                 const platforms = platformsOf(author.id);
                 if (!platforms.length) return;
-                const icon = iconFor(platforms);
-                const label = platforms.map(([p]) => LABELS[p]).join(", ");
-
-                const chosen = getPluginOption(plugin, "slot") as Slot | "auto";
-                // A chosen slot that's taken (e.g. the person shows a server
-                // tag) falls back to the other slots, in the Auto order.
-                const order = chosen === "auto" ? AUTO_ORDER : [chosen, ...AUTO_ORDER.filter(s => s !== chosen)];
-                const used = order.find(slot => place(slot, message, icon, label));
-                if (used) logOnce(`slot ${used}`, `${author.id} → ${label}`);
+                const used = decorateRow(message, platforms, getPluginOption(plugin, "slot") as Slot | "auto");
+                if (used.length) logOnce(`slots ${used.join("+")}`, author.id);
             });
+        });
+
+        // Live updates of chat rows when someone's platforms or status change.
+        waitFor(filters.byProps("_interceptors", "dispatch", "subscribe"), dispatcher => {
+            const pending = new Set<string>();
+            let timer: number | undefined;
+            const queue = (ids: (string | undefined)[]) => {
+                ids.forEach(id => id && pending.add(id));
+                if (timer !== undefined || !pending.size) return;
+                timer = setTimeout(() => {
+                    timer = undefined;
+                    const ids = new Set(pending);
+                    pending.clear();
+                    try {
+                        refreshMessagesOf(ids);
+                    } catch (e) {
+                        logger.error("PlatformIndicators: refresh failed:", e);
+                    }
+                }, 500);
+            };
+            const onPresences = (action: any) => queue((action?.updates ?? [action]).map((u: any) => u?.user?.id ?? u?.userId));
+            const onSessions = () => queue([currentUserId()]);
+            const events: [string, (action: any) => void][] = [
+                ["PRESENCE_UPDATES", onPresences],
+                ["PRESENCE_UPDATE", onPresences],
+                ["SESSIONS_REPLACE", onSessions],
+            ];
+            events.forEach(([type, handler]) => dispatcher.subscribe(type, handler));
+            cleanup(() => {
+                events.forEach(([type, handler]) => dispatcher.unsubscribe?.(type, handler));
+                if (timer !== undefined) clearTimeout(timer);
+            });
+        });
+
+        // Profile badges (Revenge's method): add entries to the list returned
+        // by Discord's useBadges hook...
+        waitFor(m => typeof m?.default === "function" && m.default.name === "useBadges", badgesModule => {
+            let watch: ((userId: string) => unknown) | undefined;
+            after(badgesModule, "default", ([user], badges) => {
+                // Re-render the profile when presences change. Resolved once,
+                // so this hook is called the same way on every render.
+                if (!watch) {
+                    const useStateFromStores = find(filters.byProps("useStateFromStores"))?.useStateFromStores;
+                    const stores = [store("PresenceStore"), store("SessionsStore")].filter(Boolean);
+                    watch =
+                        typeof useStateFromStores === "function"
+                            ? userId => useStateFromStores(stores, () => platformsOf(userId).map(p => p.join(":")).join(","))
+                            : () => undefined;
+                }
+                const userId: string | undefined = user?.userId ?? user?.id;
+                watch(userId ?? "");
+                if (!userId || !Array.isArray(badges) || store("UserStore")?.getUser?.(userId)?.bot) return;
+
+                const ours = platformsOf(userId).map(([platform, status]) => {
+                    const id = `jzs-platform-${userId}-${platform}`;
+                    profileBadgeProps.set(id, { source: { uri: singleIcon(platform, status) }, label: LABELS[platform] });
+                    return { id, description: LABELS[platform], icon: "_" };
+                });
+                logOnce("profile badges", ours.length);
+                return [...ours, ...badges];
+            });
+        });
+
+        // ...then give them our image when Discord renders them.
+        waitFor(filters.byProps("jsx", "jsxs"), runtime => {
+            const onCreate = ([Component]: any[], element: any) => {
+                if (typeof Component !== "function" || Component.name !== "RenderedBadge") return;
+                const ours = profileBadgeProps.get(element?.props?.id);
+                if (ours) element.props = { ...element.props, ...ours };
+            };
+            after(runtime, "jsx", onCreate);
+            after(runtime, "jsxs", onCreate);
         });
     },
 });

@@ -88,11 +88,18 @@ __d((g, r, d, a, module) => {
 }, 13);
 const dispatched = [];
 __d((g, r, d, a, module) => {
+    const subscribers = {};
     module.exports = {
         _interceptors: [],
         dispatch(action) {
             if (this._interceptors.some(intercept => intercept(action))) return;
             dispatched.push(JSON.parse(JSON.stringify(action)));
+            (subscribers[action.type] ?? []).forEach(handler => handler(action));
+        },
+        subscribe: (type, handler) => (subscribers[type] ??= []).push(handler),
+        unsubscribe: (type, handler) => {
+            const list = subscribers[type] ?? [];
+            if (list.includes(handler)) list.splice(list.indexOf(handler), 1);
         },
     };
 }, 14);
@@ -102,7 +109,16 @@ __d((g, r, d, a, module) => {
         m2: { id: "m2", content: "le mien", author: { id: "me" } },
         m3: { id: "m3", content: "bulk", author: { id: "other" } },
     };
-    module.exports = { getName: () => "MessageStore", getMessage: (channelId, id) => messages[id] };
+    const channelMessages = [
+        { id: "p1", content: "hello", author: { id: "pcAndPhone" } },
+        { id: "o1", content: "other", author: { id: "other" } },
+        { id: "p2", content: "again", author: { id: "pcAndPhone" } },
+    ];
+    module.exports = {
+        getName: () => "MessageStore",
+        getMessage: (channelId, id) => messages[id],
+        getMessages: channelId => ({ toArray: () => (channelId === "visible" ? channelMessages : []) }),
+    };
 }, 15);
 __d((g, r, d, a, module) => {
     module.exports = { getName: () => "UserStore", getCurrentUser: () => ({ id: "me" }) };
@@ -175,8 +191,26 @@ __d((g, r, d, a, module) => {
 __d((g, r, d, a, module) => {
     module.exports = { canUseEmojisEverywhere: () => false, canUseAnimatedEmojis: () => false };
 }, 26);
+let selectedChannel = "visible";
+__d((g, r, d, a, module) => {
+    module.exports = { getName: () => "SelectedChannelStore", getChannelId: () => selectedChannel };
+}, 28);
+function RenderedBadge() {}
+__d((g, r, d, a, module) => {
+    module.exports = { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
+}, 29);
+const storeWatches = [];
+__d((g, r, d, a, module) => {
+    module.exports = { useStateFromStores: (stores, getter) => (storeWatches.push(stores.length), getter()) };
+}, 30);
+__d((g, r, d, a, module) => {
+    function useBadges() {
+        return [{ id: "real", description: "Real badge", icon: "abc" }];
+    }
+    module.exports = { __esModule: true, default: useBadges };
+}, 31);
 
-for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]) __r(id);
+for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
 const { jzscord: vercors } = globalThis;
@@ -307,51 +341,56 @@ assert.equal(dispatcher._interceptors.length, 0, "interceptor removed");
 // --- PlatformIndicators ---
 const rowFor = (userId, extra = {}) =>
     new (__r(17).default)().generate({ message: { id: "x", author: { id: userId, username: "Pseudo" }, ...extra } }).message;
+const fileOf = url => files.get(url.replace("file:///docs/", "/docs/"));
 assert.equal(rowFor("pcAndPhone").clanBadgeUrl, undefined, "off by default");
 await run(vercorsCmd, { action: "enable", plugin: "PlatformIndicators" });
 calls.pop();
-// No server tag: the badge goes in the server-tag slot, shown in color.
+
+// Chat: one badge per device, each in its own color slot.
 const pcAndPhone = rowFor("pcAndPhone");
 assert.equal(pcAndPhone.username, "Pseudo", "no text added to the name");
-assert.equal(pcAndPhone.clanTag, "​");
-assert.equal(pcAndPhone.tagText, undefined, "the tinted tag slot stays free");
-assert.ok(pcAndPhone.clanBadgeUrl.startsWith("file:///docs/vercors/platform-"), pcAndPhone.clanBadgeUrl);
+assert.ok(pcAndPhone.clanBadgeUrl.startsWith("file:///docs/vercors/platform-one-desktop-online"), pcAndPhone.clanBadgeUrl);
+assert.ok(pcAndPhone.lobbyTagIconUrl.startsWith("file:///docs/vercors/platform-one-mobile-idle"), pcAndPhone.lobbyTagIconUrl);
+assert.equal(pcAndPhone.tagText, undefined, "the white APP slot stays free");
 await new Promise(r => setTimeout(r, 5));
-const png = files.get(pcAndPhone.clanBadgeUrl.replace("file:///docs/", "/docs/"));
+const png = fileOf(pcAndPhone.clanBadgeUrl);
 assert.ok(png, "icon file written");
 assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "a PNG");
-// The pixel data must inflate (valid zlib) to 48 rows of 1 filter byte + 48 pixels.
+// The pixel data must inflate (valid zlib) to 64 rows of 1 filter byte + 64 pixels.
 const { inflateSync } = await import("node:zlib");
 const idat = png.indexOf(Buffer.from("IDAT"));
 const idatLength = png.readUInt32BE(idat - 4);
-assert.equal(inflateSync(png.subarray(idat + 4, idat + 4 + idatLength)).length, 48 * 49);
+assert.equal(inflateSync(png.subarray(idat + 4, idat + 4 + idatLength)).length, 64 * 65);
 assert.equal(rowFor("pcAndPhone").clanBadgeUrl, pcAndPhone.clanBadgeUrl, "icons are cached");
-assert.notEqual(rowFor("web").clanBadgeUrl, pcAndPhone.clanBadgeUrl);
+assert.ok(rowFor("web").clanBadgeUrl.includes("one-web-dnd"));
 assert.equal(rowFor("gone").clanBadgeUrl, undefined, "offline platforms are hidden");
 assert.equal(rowFor("unknown").clanBadgeUrl, undefined);
 // Our own platforms come from our sessions (desktop + mobile, best status each).
-assert.ok(rowFor("me").clanBadgeUrl.includes("desktop_online_mobile_online"), rowFor("me").clanBadgeUrl);
-// Someone showing a server tag keeps it; the badge moves to the next free slot.
+const me = rowFor("me");
+assert.ok(me.clanBadgeUrl.includes("one-desktop-online") && me.lobbyTagIconUrl.includes("one-mobile-online"));
+const bot = new (__r(17).default)().generate({ message: { id: "b", author: { id: "pcAndPhone", username: "Bot", bot: true } } });
+assert.equal(bot.message.clanBadgeUrl, undefined, "no badges on bots");
+// Someone showing a server tag keeps it; one color slot left: devices share it.
 const withClan = rowFor("pcAndPhone", { clanTag: "JZBS", clanBadgeUrl: "https://cdn/clan.png" });
 assert.equal(withClan.clanTag, "JZBS");
 assert.equal(withClan.clanBadgeUrl, "https://cdn/clan.png");
-assert.equal(withClan.roleIcon, undefined, "no role icon seen yet to copy");
-assert.equal(withClan.lobbyTagIconUrl, pcAndPhone.clanBadgeUrl);
-const everythingTaken = rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x", tagText: "APP" });
-assert.equal(everythingTaken.tagText, "APP", "real app tags are kept");
+assert.ok(withClan.lobbyTagIconUrl.includes("platform-v3-desktop_online-mobile_idle"), withClan.lobbyTagIconUrl);
+// No color slot left: the APP tag slot, unless a real app tag is there.
+assert.ok(rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x" }).tagIconUrl.includes("platform-v3-"));
+assert.equal(rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x", tagText: "APP" }).tagText, "APP", "real app tags are kept");
 // Once a real role icon is seen, ours copies its shape.
 rowFor("pcAndPhone", { clanTag: "JZBS", roleIcon: { source: { uri: "https://cdn/role.png" }, name: "Mask", size: 20 } });
 const withRole = rowFor("pcAndPhone", { clanTag: "JZBS" });
 assert.deepEqual(withRole.roleIcon, { source: { uri: pcAndPhone.clanBadgeUrl }, name: "Mask", size: 20 });
-// The slot can be chosen in the settings, and applies right away.
+assert.equal(withRole.lobbyTagIconUrl, pcAndPhone.lobbyTagIconUrl);
+
+// A slot chosen in the settings gets all devices, together; applies right away.
 const piPlugin = vercors.plugins.findPlugin("PlatformIndicators");
 assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "auto");
 vercors.plugins.setPluginOption(piPlugin, "slot", "tag");
 const inTag = rowFor("pcAndPhone");
-assert.equal(inTag.tagIconUrl, pcAndPhone.clanBadgeUrl);
+assert.ok(inTag.tagIconUrl.includes("platform-v3-desktop_online-mobile_idle"));
 assert.equal(inTag.clanTag, undefined);
-vercors.plugins.setPluginOption(piPlugin, "slot", "lobby");
-assert.equal(rowFor("pcAndPhone").lobbyTagIconUrl, pcAndPhone.clanBadgeUrl);
 vercors.plugins.setPluginOption(piPlugin, "slot", "bogus");
 assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "auto", "unknown values fall back to the default");
 vercors.plugins.setPluginOption(piPlugin, "slot", "auto");
@@ -360,15 +399,44 @@ let page;
 TestRenderer.act(() => void (page = TestRenderer.create(React.createElement(Page))));
 const optionRow = () =>
     page.root.findAll(n => n.type === "Pressable").find(p => /Emplacement/.test(p.findByType("Text").props.children));
-assert.equal(optionRow().findByType("Text").props.children, "   ↳ Emplacement : Auto");
+assert.equal(optionRow().findByType("Text").props.children, "   ↳ Emplacement dans le chat : Auto (un badge par appareil)");
 TestRenderer.act(() => optionRow().props.onPress());
-assert.equal(optionRow().findByType("Text").props.children, "   ↳ Emplacement : Tag de serveur");
+assert.equal(optionRow().findByType("Text").props.children, "   ↳ Emplacement dans le chat : Tag de serveur");
 assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "clan");
 TestRenderer.act(() => page.unmount());
 vercors.plugins.setPluginOption(piPlugin, "slot", "auto");
+
+// Live: a presence change rebuilds that user's messages in the open channel.
+dispatched.length = 0;
+__r(14).dispatch({ type: "PRESENCE_UPDATES", updates: [{ user: { id: "pcAndPhone" }, status: "dnd" }] });
+await new Promise(r => setTimeout(r, 600));
+const refreshes = dispatched.filter(a => a.type === "MESSAGE_UPDATE");
+assert.deepEqual(refreshes.map(a => a.message.id), ["p1", "p2"]);
+assert.ok(refreshes.every(a => a.__vercors && a.message.guild_id === "g1"));
+assert.equal(refreshes[0].message.content, "hello", "content unchanged");
+
+// Profile: our badges come first in Discord's badge list...
+const useBadges = __r(31).default;
+storeWatches.length = 0;
+const badges = useBadges({ userId: "pcAndPhone" });
+assert.deepEqual(badges.map(b => b.id), ["jzs-platform-pcAndPhone-desktop", "jzs-platform-pcAndPhone-mobile", "real"]);
+assert.deepEqual(badges.slice(0, 2).map(b => b.description), ["PC", "Téléphone"]);
+assert.deepEqual(storeWatches, [2], "the profile re-renders on presence changes");
+assert.deepEqual(useBadges({ userId: "unknown" }).map(b => b.id), ["real"]);
+// ...and are drawn with our icons.
+const shown = __r(29).jsx(RenderedBadge, { id: "jzs-platform-pcAndPhone-mobile", label: "?" });
+assert.ok(shown.props.source.uri.includes("one-mobile-idle"), shown.props.source.uri);
+assert.equal(shown.props.label, "Téléphone");
+assert.equal(__r(29).jsxs(RenderedBadge, { id: "real" }).props.source, undefined, "Discord's badges untouched");
+
 await run(vercorsCmd, { action: "disable", plugin: "PlatformIndicators" });
 calls.pop();
 assert.equal(rowFor("pcAndPhone").clanBadgeUrl, undefined);
+assert.deepEqual(useBadges({ userId: "pcAndPhone" }).map(b => b.id), ["real"]);
+dispatched.length = 0;
+__r(14).dispatch({ type: "PRESENCE_UPDATES", updates: [{ user: { id: "pcAndPhone" } }] });
+await new Promise(r => setTimeout(r, 600));
+assert.equal(dispatched.filter(a => a.type === "MESSAGE_UPDATE").length, 0, "no refresh once disabled");
 
 const enable = async (name, on = true) => {
     await run(vercorsCmd, { action: on ? "enable" : "disable", plugin: name });

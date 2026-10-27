@@ -50,12 +50,12 @@ export const STATUS_COLORS: Record<string, string> = {
 
 const hex = (color: string) => [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
 
-const SIZE = 48; // pixels; the image is square, icons share its width
+const SIZE = 64; // pixels; the image is square, icons share its width
 const SAMPLES = 4; // per axis, for anti-aliasing
 const LEVELS = 16; // transparency steps per color
 
 /** The PNG bytes for one icon per [platform, status] pair, left to right. */
-function renderPlatformIconsPng(entries: [string, string][]): number[] {
+function renderPlatformIconsPng(entries: [string, string][], marginRatio = 0.1): number[] {
     const colors = Array.from(new Set(entries.map(([, status]) => STATUS_COLORS[status] ?? STATUS_COLORS.online)));
     // Palette: index 0 transparent, then LEVELS opacity steps for each color.
     const palette: number[][] = [[0, 0, 0, 0]];
@@ -65,7 +65,7 @@ function renderPlatformIconsPng(entries: [string, string][]): number[] {
 
     const pixels = new Array(SIZE * SIZE).fill(0);
     // Keep a margin: badge slots crop or round the image's edges.
-    const margin = SIZE * 0.1;
+    const margin = SIZE * marginRatio;
     const usable = SIZE - 2 * margin;
     const cell = usable / entries.length;
     const iconSize = Math.min(cell * (entries.length > 1 ? 0.9 : 1), usable);
@@ -96,6 +96,11 @@ function renderPlatformIconsPng(entries: [string, string][]): number[] {
 /** Data URI (works in RN <Image>, but not always in the tag/badge loader). */
 export function renderPlatformIcons(entries: [string, string][]): string {
     return pngDataUri(renderPlatformIconsPng(entries));
+}
+
+/** One platform icon filling its image, for a badge of its own. */
+export function renderPlatformIconBase64(platform: string, status: string): string {
+    return pngBase64(renderPlatformIconsPng([[platform, status]], 0.03));
 }
 
 /** Base64 PNG, for writing to a file served as file://. */

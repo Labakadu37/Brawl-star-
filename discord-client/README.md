@@ -44,7 +44,7 @@ plugins.
 |---|---|---|
 | MessageLogger | ❌ | Garde les messages supprimés (surlignés en rouge) et les anciennes versions des messages modifiés (✏️), jusqu'au redémarrage |
 | ShowHiddenChannels | ❌ | Affiche les salons auxquels tu n'as pas accès ; les ouvrir affiche juste leur nom et leur sujet |
-| PlatformIndicators | ❌ | Badge après le pseudo (icônes PC, téléphone, navigateur, console) dans la couleur du statut |
+| PlatformIndicators | ❌ | Badges PC, téléphone, navigateur, console (un par appareil, couleur du statut, mis à jour en direct) dans le chat et dans la rangée de badges des profils |
 | FakeNitro | ❌ | Emojis animés et d'autres serveurs sans Nitro (envoyés en image) |
 | ShowMeYourName | ❌ | « Surnom (pseudo) » dans le chat |
 | NoReplyMention | ❌ | Les réponses ne mentionnent plus la personne par défaut |
