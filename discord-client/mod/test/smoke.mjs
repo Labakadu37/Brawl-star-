@@ -292,18 +292,17 @@ assert.equal(dispatcher._interceptors.length, 0, "interceptor removed");
 // --- PlatformIndicators ---
 const rowFor = (userId, extra = {}) =>
     new (__r(17).default)().generate({ message: { id: "x", author: { id: userId, username: "Pseudo" }, ...extra } }).message;
-assert.equal(rowFor("pcAndPhone").tagIconUrl, undefined, "off by default");
+assert.equal(rowFor("pcAndPhone").clanBadgeUrl, undefined, "off by default");
 await run(vercorsCmd, { action: "enable", plugin: "PlatformIndicators" });
 calls.pop();
+// No server tag: the badge goes in the server-tag slot, shown in color.
 const pcAndPhone = rowFor("pcAndPhone");
 assert.equal(pcAndPhone.username, "Pseudo", "no text added to the name");
-assert.equal(pcAndPhone.tagText, "\u200b");
-assert.equal(pcAndPhone.tagAccessibilityLabel, "PC, Téléphone");
-assert.equal(pcAndPhone.tagVerified, false, "verified mode would tint the icon");
-assert.equal(pcAndPhone.tagBackgroundColor, "processed(rgba(128,132,142,0.25))");
-assert.ok(pcAndPhone.tagIconUrl.startsWith("file:///docs/vercors/platform-"), pcAndPhone.tagIconUrl);
+assert.equal(pcAndPhone.clanTag, "​");
+assert.equal(pcAndPhone.tagText, undefined, "the tinted tag slot stays free");
+assert.ok(pcAndPhone.clanBadgeUrl.startsWith("file:///docs/vercors/platform-"), pcAndPhone.clanBadgeUrl);
 await new Promise(r => setTimeout(r, 5));
-const png = files.get(pcAndPhone.tagIconUrl.replace("file:///docs/", "/docs/"));
+const png = files.get(pcAndPhone.clanBadgeUrl.replace("file:///docs/", "/docs/"));
 assert.ok(png, "icon file written");
 assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "a PNG");
 // The pixel data must inflate (valid zlib) to 48 rows of 1 filter byte + 48 pixels.
@@ -311,15 +310,23 @@ const { inflateSync } = await import("node:zlib");
 const idat = png.indexOf(Buffer.from("IDAT"));
 const idatLength = png.readUInt32BE(idat - 4);
 assert.equal(inflateSync(png.subarray(idat + 4, idat + 4 + idatLength)).length, 48 * 49);
-assert.equal(rowFor("pcAndPhone").tagIconUrl, pcAndPhone.tagIconUrl, "icons are cached");
-assert.notEqual(rowFor("web").tagIconUrl, pcAndPhone.tagIconUrl);
-assert.equal(rowFor("gone").tagIconUrl, undefined, "offline platforms are hidden");
-assert.equal(rowFor("unknown").tagIconUrl, undefined);
-assert.ok(rowFor("me").tagIconUrl, "we are on a phone");
-assert.equal(rowFor("pcAndPhone", { tagText: "APP" }).tagText, "APP", "real tags are kept");
+assert.equal(rowFor("pcAndPhone").clanBadgeUrl, pcAndPhone.clanBadgeUrl, "icons are cached");
+assert.notEqual(rowFor("web").clanBadgeUrl, pcAndPhone.clanBadgeUrl);
+assert.equal(rowFor("gone").clanBadgeUrl, undefined, "offline platforms are hidden");
+assert.equal(rowFor("unknown").clanBadgeUrl, undefined);
+assert.ok(rowFor("me").clanBadgeUrl, "we are on a phone");
+// Someone showing a server tag keeps it; the badge falls back to the tag slot.
+const withClan = rowFor("pcAndPhone", { clanTag: "JZBS", clanBadgeUrl: "https://cdn/clan.png" });
+assert.equal(withClan.clanTag, "JZBS");
+assert.equal(withClan.clanBadgeUrl, "https://cdn/clan.png");
+assert.equal(withClan.tagIconUrl, pcAndPhone.clanBadgeUrl);
+assert.equal(withClan.tagVerified, false);
+assert.equal(withClan.tagAccessibilityLabel, "PC, Téléphone");
+const withBoth = rowFor("pcAndPhone", { clanTag: "JZBS", tagText: "APP" });
+assert.equal(withBoth.tagText, "APP", "real app tags are kept");
 await run(vercorsCmd, { action: "disable", plugin: "PlatformIndicators" });
 calls.pop();
-assert.equal(rowFor("pcAndPhone").tagIconUrl, undefined);
+assert.equal(rowFor("pcAndPhone").clanBadgeUrl, undefined);
 
 const enable = async (name, on = true) => {
     await run(vercorsCmd, { action: on ? "enable" : "disable", plugin: name });

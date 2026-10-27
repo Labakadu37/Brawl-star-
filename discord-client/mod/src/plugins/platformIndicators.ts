@@ -39,7 +39,14 @@ export default definePlugin({
     description: "Badge à côté du pseudo : PC, téléphone, navigateur ou console, en couleur du statut",
     authors: ["JZSCord"],
     start({ waitFor, after }) {
-        let loggedRealTag = false;
+        const logged = new Set<string>();
+        // Logs one real example of a row field, to learn how Discord fills it.
+        const logOnce = (what: string, value: unknown) => {
+            if (logged.has(what)) return;
+            logged.add(what);
+            logger.log(`PlatformIndicators: real ${what}:`, value);
+        };
+
         waitFor(isRowManager, RowManager => {
             after(RowManager.prototype, "generate", ([row], result) => {
                 const author = row?.message?.author;
@@ -47,28 +54,34 @@ export default definePlugin({
                 // Only rows showing the author's name (first message of a group).
                 if (!author?.id || !message || typeof message.username !== "string" || !message.username) return;
 
-                if (message.tagText) {
-                    // Keep real tags (APP, BOT…); log one to learn how they look.
-                    if (!loggedRealTag) {
-                        loggedRealTag = true;
-                        const { tagText, tagType, tagIconUrl, tagBackgroundColor, tagTextColor, tagVerified } = message;
-                        logger.log("PlatformIndicators: real tag:", { tagText, tagType, tagIconUrl, tagBackgroundColor, tagTextColor, tagVerified });
-                    }
-                    return;
-                }
+                if (message.clanTag) logOnce("clan tag", { clanTag: message.clanTag, clanBadgeUrl: message.clanBadgeUrl, clanTagGuildId: message.clanTagGuildId });
+                if (message.roleIcon) logOnce("role icon", message.roleIcon);
+                if (message.tagText) logOnce("tag", { tagText: message.tagText, tagIconUrl: message.tagIconUrl, tagVerified: message.tagVerified });
 
                 const platforms = platformsOf(author.id);
                 if (!platforms.length) return;
+                const icon = iconFor(platforms);
+                const label = platforms.map(([p]) => LABELS[p]).join(", ");
+
+                // The server-tag slot shows its badge image in color (the
+                // "APP" tag slot tints its icon white), so use it when free.
+                if (!message.clanTag) {
+                    message.clanTag = "\u200b";
+                    message.clanBadgeUrl = icon;
+                    message.clanTagGuildId = undefined;
+                    return;
+                }
+
+                // The user already shows a server tag: fall back to the tag
+                // slot (icon tinted by Discord), unless an app tag is there.
+                if (message.tagText) return;
                 const processColor = getReactNative()?.processColor;
-                // Vencord look: status-colored icons on a grey pill. Not
-                // "verified": that mode tints the icon to a single color.
-                // Zero-width text keeps the tag icon-only.
-                message.tagText = "​";
-                message.tagIconUrl = iconFor(platforms);
+                message.tagText = "\u200b";
+                message.tagIconUrl = icon;
                 message.tagVerified = false;
                 message.tagBackgroundColor = processColor?.("rgba(128,132,142,0.25)") ?? 0x4080848e;
                 message.tagTextColor = processColor?.("rgba(0,0,0,0)") ?? 0;
-                message.tagAccessibilityLabel = platforms.map(([p]) => LABELS[p]).join(", ");
+                message.tagAccessibilityLabel = label;
             });
         });
     },
