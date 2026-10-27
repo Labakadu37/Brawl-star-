@@ -60,12 +60,13 @@ export default definePlugin({
                 const platforms = platformsOf(author.id);
                 if (!platforms.length) return;
                 const processColor = getReactNative()?.processColor;
-                // Render like the real "APP" tag: a verified-style pill with an
-                // icon. Zero-width text keeps it icon-only on a faint background.
+                // Vencord look: status-colored icons on a grey pill. Not
+                // "verified": that mode tints the icon to a single color.
+                // Zero-width text keeps the tag icon-only.
                 message.tagText = "​";
                 message.tagIconUrl = iconFor(platforms);
-                message.tagVerified = true;
-                message.tagBackgroundColor = processColor?.("rgba(0,0,0,0.01)") ?? 0x03000000;
+                message.tagVerified = false;
+                message.tagBackgroundColor = processColor?.("rgba(128,132,142,0.25)") ?? 0x4080848e;
                 message.tagTextColor = processColor?.("rgba(0,0,0,0)") ?? 0;
                 message.tagAccessibilityLabel = platforms.map(([p]) => LABELS[p]).join(", ");
             });
