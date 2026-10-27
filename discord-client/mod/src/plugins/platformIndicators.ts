@@ -12,11 +12,32 @@ const LABELS: Record<string, string> = { desktop: "PC", mobile: "Téléphone", w
 
 const iconCache = new Map<string, string>();
 
+// Our own platforms aren't in PresenceStore; like Vencord, read them from our
+// open sessions (one per device), keeping the most active status per client.
+function ownStatuses(): Record<string, string> | undefined {
+    const sessions = find(filters.byStoreName("SessionsStore"))?.getSessions?.();
+    if (!sessions || typeof sessions !== "object") return undefined;
+    const rank = (status: string) => ["online", "idle", "dnd"].indexOf(status);
+    const statuses: Record<string, string> = {};
+    for (const session of Object.values<any>(sessions)) {
+        const client = session?.clientInfo?.client;
+        if (!client || client === "unknown" || !session.status) continue;
+        const current = statuses[client];
+        if (!current || (rank(session.status) !== -1 && (rank(current) === -1 || rank(session.status) < rank(current)))) {
+            statuses[client] = session.status;
+        }
+    }
+    return Object.keys(statuses).length ? statuses : undefined;
+}
+
 function platformsOf(userId: string): [string, string][] {
-    let statuses = find(filters.byStoreName("PresenceStore"))?.getState?.()?.clientStatuses?.[userId];
-    // Discord doesn't list our own sessions there; we're on a phone right now.
-    if (!statuses && userId === find(filters.byStoreName("UserStore"))?.getCurrentUser?.()?.id) {
-        statuses = { mobile: "online" };
+    let statuses: Record<string, string> | undefined;
+    if (userId === find(filters.byStoreName("UserStore"))?.getCurrentUser?.()?.id) {
+        // Fallback when sessions are unavailable: we're on a phone right now.
+        statuses = ownStatuses() ?? { mobile: "online" };
+    } else {
+        const presences = find(filters.byStoreName("PresenceStore"));
+        statuses = presences?.getClientStatus?.(userId) ?? presences?.getState?.()?.clientStatuses?.[userId];
     }
     if (!statuses) return [];
     return PLATFORMS.filter(p => statuses[p] && statuses[p] !== "offline").map(p => [p, statuses[p]]);

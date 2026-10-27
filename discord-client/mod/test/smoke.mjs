@@ -109,8 +109,23 @@ __d((g, r, d, a, module) => {
 }, 16);
 __d((g, r, d, a, module) => {
     const clientStatuses = { pcAndPhone: { desktop: "online", mobile: "idle" }, web: { web: "dnd" }, gone: { desktop: "offline" } };
-    module.exports = { getName: () => "PresenceStore", getState: () => ({ clientStatuses }) };
+    module.exports = {
+        getName: () => "PresenceStore",
+        getState: () => ({ clientStatuses }),
+        getClientStatus: id => clientStatuses[id],
+    };
 }, 19);
+__d((g, r, d, a, module) => {
+    module.exports = {
+        getName: () => "SessionsStore",
+        getSessions: () => ({
+            a: { status: "idle", clientInfo: { client: "mobile" } },
+            b: { status: "online", clientInfo: { client: "desktop" } },
+            c: { status: "online", clientInfo: { client: "mobile" } },
+            d: { status: "online", clientInfo: { client: "unknown" } },
+        }),
+    };
+}, 27);
 __d((g, r, d, a, module) => {
     function RowManager() {}
     RowManager.prototype.generate = row => ({
@@ -161,7 +176,7 @@ __d((g, r, d, a, module) => {
     module.exports = { canUseEmojisEverywhere: () => false, canUseAnimatedEmojis: () => false };
 }, 26);
 
-for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]) __r(id);
+for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
 const { jzscord: vercors } = globalThis;
@@ -314,7 +329,8 @@ assert.equal(rowFor("pcAndPhone").clanBadgeUrl, pcAndPhone.clanBadgeUrl, "icons 
 assert.notEqual(rowFor("web").clanBadgeUrl, pcAndPhone.clanBadgeUrl);
 assert.equal(rowFor("gone").clanBadgeUrl, undefined, "offline platforms are hidden");
 assert.equal(rowFor("unknown").clanBadgeUrl, undefined);
-assert.ok(rowFor("me").clanBadgeUrl, "we are on a phone");
+// Our own platforms come from our sessions (desktop + mobile, best status each).
+assert.ok(rowFor("me").clanBadgeUrl.includes("desktop_online_mobile_online"), rowFor("me").clanBadgeUrl);
 // Someone showing a server tag keeps it; the badge falls back to the tag slot.
 const withClan = rowFor("pcAndPhone", { clanTag: "JZBS", clanBadgeUrl: "https://cdn/clan.png" });
 assert.equal(withClan.clanTag, "JZBS");
