@@ -412,10 +412,15 @@ const plugin: PluginDef = definePlugin({
                 const Image = getReactNative()?.Image;
                 if (status && status !== "offline" && status !== "invisible" && isComponent(Image)) {
                     const platform = props.isVROnline ? "embedded" : props.isMobileOnline ? "mobile" : "desktop";
-                    const size = Math.round((props.size ?? 16) * 1.35);
+                    // Match the dot's own footprint so the icon doesn't overflow
+                    // the avatar; our icons already have an inner margin.
+                    const size = Math.round(props.size ?? 16);
                     // Render our icon in place of Discord's dot (type/props swap).
                     element.type = Image;
-                    element.props = { source: { uri: hostedIcon(platform, status) }, style: [props.style, { width: size, height: size }] };
+                    element.props = {
+                        source: { uri: hostedIcon(platform, status) },
+                        style: [props.style, { width: size, height: size, resizeMode: "contain" }],
+                    };
                 }
                 return;
             }

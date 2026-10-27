@@ -502,7 +502,8 @@ assert.equal(__r(29).jsxs(RenderedBadge, { id: "real" }).props.source, undefined
 function Status() {}
 const dotMobile = __r(29).jsx(Status, { status: "dnd", isMobileOnline: true, isVROnline: false, size: 16, style: { position: "absolute" } });
 assert.match(dotMobile.props.source.uri, /\/assets\/badges\/mobile-dnd\.png$/);
-assert.ok(dotMobile.props.style.some(s => s && s.width > 16), "sized up from the dot");
+assert.ok(dotMobile.props.style.some(s => s && s.width === 16), "matches the dot size, no overflow");
+assert.ok(dotMobile.props.style.some(s => s && s.resizeMode === "contain"));
 const dotPc = __r(29).jsx(Status, { status: "online", isMobileOnline: false, size: 16 });
 assert.match(dotPc.props.source.uri, /\/assets\/badges\/desktop-online\.png$/);
 // Offline / unknown stays Discord's normal dot.
