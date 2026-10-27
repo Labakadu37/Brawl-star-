@@ -194,7 +194,7 @@ function decorateRow(message: any, platforms: [string, string][], chosen: Slot |
  * Chat rows are only rebuilt when their message changes, so after presence
  * updates, ask Discord to rebuild the visible messages of those users.
  */
-function refreshMessagesOf(userIds: Set<string>) {
+function refreshMessagesOf(userIds: Set<string> | null) {
     const channelId = store("SelectedChannelStore")?.getChannelId?.();
     if (!channelId) return;
     const messages = store("MessageStore")?.getMessages?.(channelId);
@@ -202,7 +202,8 @@ function refreshMessagesOf(userIds: Set<string>) {
     const dispatcher = find(filters.byProps("_interceptors", "dispatch"));
     const guildId = getChannel(channelId)?.guild_id;
     for (const message of list.slice(-50)) {
-        if (!userIds.has(message?.author?.id)) continue;
+        // null = every author (a batch of presences just loaded).
+        if (userIds && !userIds.has(message?.author?.id)) continue;
         dispatcher?.dispatch({
             type: "MESSAGE_UPDATE",
             message: { id: message.id, channel_id: channelId, guild_id: guildId, content: message.content },
@@ -294,20 +295,31 @@ const plugin: PluginDef = definePlugin({
         // Live updates of chat rows when someone's platforms or status change.
         waitFor(filters.byProps("_interceptors", "dispatch", "subscribe"), dispatcher => {
             const pending = new Set<string>();
+            let pendingAll = false;
             let timer: number | undefined;
+            const flush = () => {
+                timer = undefined;
+                const ids = pendingAll ? null : new Set(pending);
+                pending.clear();
+                pendingAll = false;
+                try {
+                    refreshMessagesOf(ids);
+                } catch (e) {
+                    logger.error("PlatformIndicators: refresh failed:", e);
+                }
+            };
+            const arm = () => {
+                if (timer === undefined) timer = setTimeout(flush, 500);
+            };
             const queue = (ids: (string | undefined)[]) => {
                 ids.forEach(id => id && pending.add(id));
-                if (timer !== undefined || !pending.size) return;
-                timer = setTimeout(() => {
-                    timer = undefined;
-                    const ids = new Set(pending);
-                    pending.clear();
-                    try {
-                        refreshMessagesOf(ids);
-                    } catch (e) {
-                        logger.error("PlatformIndicators: refresh failed:", e);
-                    }
-                }, 500);
+                if (pending.size) arm();
+            };
+            // Bulk events (presences loaded in batch, member list scrolled):
+            // the user ids aren't always given, so refresh the open channel.
+            const queueAll = () => {
+                pendingAll = true;
+                arm();
             };
             const onPresences = (action: any) => queue((action?.updates ?? [action]).map((u: any) => u?.user?.id ?? u?.userId));
             const onSessions = () => queue([currentUserId()]);
@@ -315,6 +327,10 @@ const plugin: PluginDef = definePlugin({
                 ["PRESENCE_UPDATES", onPresences],
                 ["PRESENCE_UPDATE", onPresences],
                 ["SESSIONS_REPLACE", onSessions],
+                // Fire when Discord lazily loads other users' presence/devices.
+                ["PRESENCES_REPLACE", queueAll],
+                ["GUILD_MEMBER_LIST_UPDATE", queueAll],
+                ["GUILD_PRESENCES", queueAll],
             ];
             events.forEach(([type, handler]) => dispatcher.subscribe(type, handler));
             cleanup(() => {

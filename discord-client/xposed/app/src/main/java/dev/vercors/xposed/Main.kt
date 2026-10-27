@@ -13,7 +13,7 @@ import org.json.JSONObject
 import java.io.File
 
 const val TAG = "JZCord"
-const val LOADER_VERSION = "0.8.2"
+const val LOADER_VERSION = "0.8.3"
 
 fun log(message: String) {
     Log.i(TAG, message)

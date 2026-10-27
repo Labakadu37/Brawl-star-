@@ -452,6 +452,11 @@ __r(14).dispatch({ type: "PRESENCE_UPDATES", updates: [{ user: { id: "pcAndPhone
 await new Promise(r => setTimeout(r, 600));
 const refreshes = dispatched.filter(a => a.type === "MESSAGE_UPDATE");
 assert.deepEqual(refreshes.map(a => a.message.id), ["p1", "p2"]);
+// A batch of presences loading refreshes every author in the channel.
+dispatched.length = 0;
+__r(14).dispatch({ type: "GUILD_MEMBER_LIST_UPDATE" });
+await new Promise(r => setTimeout(r, 600));
+assert.deepEqual(dispatched.filter(a => a.type === "MESSAGE_UPDATE").map(a => a.message.id), ["p1", "o1", "p2"]);
 assert.ok(refreshes.every(a => a.__vercors && a.message.guild_id === "g1"));
 assert.equal(refreshes[0].message.content, "hello", "content unchanged");
 
