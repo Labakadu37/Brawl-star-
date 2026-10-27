@@ -370,13 +370,15 @@ const me = rowFor("me");
 assert.ok(me.clanBadgeUrl.includes("one-desktop-online") && me.lobbyTagIconUrl.includes("one-mobile-online"));
 const bot = new (__r(17).default)().generate({ message: { id: "b", author: { id: "pcAndPhone", username: "Bot", bot: true } } });
 assert.equal(bot.message.clanBadgeUrl, undefined, "no badges on bots");
-// Someone showing a server tag keeps it; one color slot left: devices share it.
+// Someone showing a server tag keeps it. One color slot left: devices never
+// share a badge, the most active one gets it (here desktop, online).
 const withClan = rowFor("pcAndPhone", { clanTag: "JZBS", clanBadgeUrl: "https://cdn/clan.png" });
 assert.equal(withClan.clanTag, "JZBS");
 assert.equal(withClan.clanBadgeUrl, "https://cdn/clan.png");
-assert.ok(withClan.lobbyTagIconUrl.includes("platform-v3-desktop_online-mobile_idle"), withClan.lobbyTagIconUrl);
+assert.equal(withClan.lobbyTagIconUrl, pcAndPhone.clanBadgeUrl);
+assert.equal(withClan.tagText, undefined);
 // No color slot left: the APP tag slot, unless a real app tag is there.
-assert.ok(rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x" }).tagIconUrl.includes("platform-v3-"));
+assert.ok(rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x" }).tagIconUrl.includes("platform-one-desktop-online"));
 assert.equal(rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x", tagText: "APP" }).tagText, "APP", "real app tags are kept");
 // Once a real role icon is seen, ours copies its shape.
 rowFor("pcAndPhone", { clanTag: "JZBS", roleIcon: { source: { uri: "https://cdn/role.png" }, name: "Mask", size: 20 } });
@@ -384,13 +386,13 @@ const withRole = rowFor("pcAndPhone", { clanTag: "JZBS" });
 assert.deepEqual(withRole.roleIcon, { source: { uri: pcAndPhone.clanBadgeUrl }, name: "Mask", size: 20 });
 assert.equal(withRole.lobbyTagIconUrl, pcAndPhone.lobbyTagIconUrl);
 
-// A slot chosen in the settings gets all devices, together; applies right away.
+// A slot chosen in the settings is used first; applies right away.
 const piPlugin = vercors.plugins.findPlugin("PlatformIndicators");
 assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "auto");
 vercors.plugins.setPluginOption(piPlugin, "slot", "tag");
 const inTag = rowFor("pcAndPhone");
-assert.ok(inTag.tagIconUrl.includes("platform-v3-desktop_online-mobile_idle"));
-assert.equal(inTag.clanTag, undefined);
+assert.ok(inTag.tagIconUrl.includes("platform-one-desktop-online"));
+assert.ok(inTag.clanBadgeUrl.includes("platform-one-mobile-idle"), "the next device in the next slot");
 vercors.plugins.setPluginOption(piPlugin, "slot", "bogus");
 assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "auto", "unknown values fall back to the default");
 vercors.plugins.setPluginOption(piPlugin, "slot", "auto");
@@ -425,7 +427,13 @@ assert.deepEqual(storeWatches, [2], "the profile re-renders on presence changes"
 assert.deepEqual(useBadges({ userId: "unknown" }).map(b => b.id), ["real"]);
 // ...and are drawn with our icons.
 const shown = __r(29).jsx(RenderedBadge, { id: "jzs-platform-pcAndPhone-mobile", label: "?" });
-assert.ok(shown.props.source.uri.includes("one-mobile-idle"), shown.props.source.uri);
+// Profiles load the icons hosted in the repo over https.
+assert.match(shown.props.source.uri, /^https:\/\/raw\.githubusercontent\.com\/.+\/discord-client\/assets\/badges\/mobile-idle\.png$/);
+// Every hosted icon the plugin can ask for exists in the repo.
+const { existsSync } = await import("node:fs");
+for (const platform of ["desktop", "mobile", "web", "embedded"])
+    for (const status of ["online", "idle", "dnd"])
+        assert.ok(existsSync(new URL(`../../assets/badges/${platform}-${status}.png`, import.meta.url)), `${platform}-${status}.png`);
 assert.equal(shown.props.label, "Téléphone");
 assert.equal(__r(29).jsxs(RenderedBadge, { id: "real" }).props.source, undefined, "Discord's badges untouched");
 

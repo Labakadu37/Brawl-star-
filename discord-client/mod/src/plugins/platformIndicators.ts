@@ -1,8 +1,8 @@
 import { getChannel, isRowManager } from "../lib/discord";
 import { writeBase64File } from "../lib/fs";
 import { logger } from "../lib/logger";
-import { filters, find } from "../lib/metro";
-import { renderPlatformIconBase64, renderPlatformIcons, renderPlatformIconsBase64 } from "../lib/platformIcons";
+import { filters, find, waitForAll } from "../lib/metro";
+import { renderPlatformIconBase64, renderPlatformIcons } from "../lib/platformIcons";
 import { definePlugin, getPluginOption, PluginDef } from "../lib/plugins";
 import { getReactNative } from "../lib/react";
 
@@ -62,9 +62,22 @@ function cachedIcon(name: string, base64: () => string, dataUri: () => string): 
 const singleIcon = (platform: string, status: string) =>
     cachedIcon(`one-${platform}-${status}`, () => renderPlatformIconBase64(platform, status), () => renderPlatformIcons([[platform, status]]));
 
-/** Several platforms side by side in one image, when there aren't enough slots. */
-const combinedIcon = (platforms: [string, string][]) =>
-    cachedIcon(`v3-${platforms.map(p => p.join("_")).join("-")}`, () => renderPlatformIconsBase64(platforms), () => renderPlatformIcons(platforms));
+// Profile badge images don't load local files, so profiles use the same icons
+// hosted in this repository (pinned to the commit that added them;
+// regenerate with mod/scripts/export-badges.mjs).
+const BADGE_BASE_URL =
+    "https://raw.githubusercontent.com/Labakadu37/Brawl-star-/6d8a50783ac292dd410fed488ca7de9c23c80cf6/discord-client/assets/badges";
+const hostedIcon = (platform: string, status: string) =>
+    `${BADGE_BASE_URL}/${platform}-${["online", "idle", "dnd"].includes(status) ? status : "online"}.png`;
+
+/** Most active first (online, idle, dnd), then desktop, mobile, web, console. */
+function byActivity(platforms: [string, string][]): [string, string][] {
+    const rank = (status: string) => {
+        const index = ["online", "idle", "dnd"].indexOf(status);
+        return index === -1 ? 3 : index;
+    };
+    return [...platforms].sort((a, b) => rank(a[1]) - rank(b[1]) || PLATFORMS.indexOf(a[0]) - PLATFORMS.indexOf(b[0]));
+}
 
 // --- Chat ---
 
@@ -129,29 +142,21 @@ function place(slot: Slot, message: any, icon: string, label: string) {
 }
 
 /**
- * One badge per platform, each in its own free color slot. With more platforms
- * than free slots, the last slot shows the rest together. A slot chosen in the
- * settings gets them all, together.
+ * One badge per device, each in its own slot: the slot chosen in the settings
+ * first, then the free color slots. Devices never share a badge; with fewer
+ * slots than devices, the most active ones are shown (the profile shows all).
  */
 function decorateRow(message: any, platforms: [string, string][], chosen: Slot | "auto"): Slot[] {
-    const label = platforms.map(([p]) => LABELS[p]).join(", ");
-    if (chosen !== "auto" && isFree(chosen, message)) {
-        place(chosen, message, platforms.length === 1 ? singleIcon(...platforms[0]) : combinedIcon(platforms), label);
-        return [chosen];
-    }
+    const preferred = chosen === "auto" ? COLOR_SLOTS : [chosen, ...COLOR_SLOTS.filter(slot => slot !== chosen)];
+    let slots = preferred.filter(slot => isFree(slot, message));
+    // No color slot left: the white APP tag beats no badge at all.
+    if (!slots.length && isFree("tag", message)) slots = ["tag"];
 
-    const slots = COLOR_SLOTS.filter(slot => isFree(slot, message));
-    if (!slots.length) {
-        if (!isFree("tag", message)) return [];
-        place("tag", message, combinedIcon(platforms), label);
-        return ["tag"];
-    }
-    const used = slots.slice(0, platforms.length);
+    const devices = byActivity(platforms);
+    const used = slots.slice(0, devices.length);
     used.forEach((slot, i) => {
-        const isLast = i === used.length - 1;
-        const rest = isLast ? platforms.slice(i) : [platforms[i]];
-        const icon = rest.length === 1 ? singleIcon(...rest[0]) : combinedIcon(rest);
-        place(slot, message, icon, rest.map(([p]) => LABELS[p]).join(", "));
+        const [platform, status] = devices[i];
+        place(slot, message, singleIcon(platform, status), LABELS[platform]);
     });
     return used;
 }
@@ -283,9 +288,9 @@ const plugin: PluginDef = definePlugin({
                 watch(userId ?? "");
                 if (!userId || !Array.isArray(badges) || store("UserStore")?.getUser?.(userId)?.bot) return;
 
-                const ours = platformsOf(userId).map(([platform, status]) => {
+                const ours = byActivity(platformsOf(userId)).map(([platform, status]) => {
                     const id = `jzs-platform-${userId}-${platform}`;
-                    profileBadgeProps.set(id, { source: { uri: singleIcon(platform, status) }, label: LABELS[platform] });
+                    profileBadgeProps.set(id, { source: { uri: hostedIcon(platform, status) }, label: LABELS[platform] });
                     return { id, description: LABELS[platform], icon: "_" };
                 });
                 logOnce("profile badges", ours.length);
@@ -293,16 +298,20 @@ const plugin: PluginDef = definePlugin({
             });
         });
 
-        // ...then give them our image when Discord renders them.
-        waitFor(filters.byProps("jsx", "jsxs"), runtime => {
-            const onCreate = ([Component]: any[], element: any) => {
-                if (typeof Component !== "function" || Component.name !== "RenderedBadge") return;
-                const ours = profileBadgeProps.get(element?.props?.id);
-                if (ours) element.props = { ...element.props, ...ours };
-            };
-            after(runtime, "jsx", onCreate);
-            after(runtime, "jsxs", onCreate);
-        });
+        // ...then give them our image when Discord renders them. Every module
+        // exposing the JSX runtime is patched: builds can have more than one.
+        const onCreate = ([Component]: any[], element: any) => {
+            if (typeof Component !== "function" || Component.name !== "RenderedBadge") return;
+            const ours = profileBadgeProps.get(element?.props?.id);
+            logOnce(ours ? "RenderedBadge (ours)" : "RenderedBadge", Object.keys(element?.props ?? {}).join(","));
+            if (ours) element.props = { ...element.props, ...ours };
+        };
+        cleanup(
+            waitForAll(m => typeof m?.jsx === "function" && typeof m?.jsxs === "function", runtime => {
+                after(runtime, "jsx", onCreate);
+                after(runtime, "jsxs", onCreate);
+            }),
+        );
     },
 });
 
