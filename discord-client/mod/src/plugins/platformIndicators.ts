@@ -214,6 +214,9 @@ function refreshMessagesOf(userIds: Set<string>) {
 
 // --- Profile ---
 
+// Prefix of the `icon` of our profile badges.
+const ICON_MARKER = "jzs_platform_";
+
 // Props for our profile badges, keyed by badge id, applied when Discord
 // renders them (RenderedBadge only knows how to show Discord's own icons).
 const profileBadgeProps = new Map<string, Record<string, unknown>>();
@@ -342,27 +345,47 @@ const plugin: PluginDef = definePlugin({
                 const ours = byActivity(platformsOf(userId)).map(([platform, status]) => {
                     const id = `jzs-platform-${userId}-${platform}`;
                     profileBadgeProps.set(id, { source: { uri: hostedIcon(platform, status) }, label: LABELS[platform] });
-                    return { id, description: LABELS[platform], icon: "_" };
+                    // Discord builds the badge image URL from `icon`; the
+                    // marker lets us spot that image and swap in ours.
+                    return { id, description: LABELS[platform], icon: `${ICON_MARKER}${platform}_${status}` };
                 });
                 logOnce("profile badges", ours.length);
                 return [...ours, ...badges];
             });
         });
 
-        // ...then give them our image when Discord renders them. Every module
-        // exposing the JSX runtime is patched: builds can have more than one.
+        // ...then make sure they show our image. However this build draws a
+        // badge, it ends up creating an image whose URL contains the marker
+        // from `icon`: rewrite that URL. Components that receive the badge id
+        // (RenderedBadge, as in Revenge) also get our source and label.
         const onCreate = ([Component]: any[], element: any) => {
-            if (typeof Component !== "function" || Component.name !== "RenderedBadge") return;
-            const ours = profileBadgeProps.get(element?.props?.id);
-            logOnce(ours ? "RenderedBadge (ours)" : "RenderedBadge", Object.keys(element?.props ?? {}).join(","));
-            if (ours) element.props = { ...element.props, ...ours };
+            const props = element?.props;
+            if (!props || typeof props !== "object") return;
+            if (typeof props.id === "string" && props.id.startsWith("jzs-platform-")) {
+                logOnce(`badge drawn by ${Component?.displayName ?? Component?.name ?? typeof Component}`, Object.keys(props).join(","));
+                const ours = profileBadgeProps.get(props.id);
+                if (ours) element.props = { ...props, ...ours };
+                return;
+            }
+            const source = props.source;
+            const uri = Array.isArray(source) ? source[0]?.uri : source?.uri;
+            if (typeof uri !== "string" || !uri.includes(ICON_MARKER)) return;
+            const match = new RegExp(`${ICON_MARKER}([a-z]+)_([a-z]+)`).exec(uri);
+            if (!match) return;
+            logOnce("badge image rewritten", uri);
+            element.props = { ...props, source: { uri: hostedIcon(match[1], match[2]) } };
         };
+        // Every module exposing the JSX runtime (builds can have more than
+        // one), and classic React.createElement.
         cleanup(
             waitForAll(m => typeof m?.jsx === "function" && typeof m?.jsxs === "function", runtime => {
                 after(runtime, "jsx", onCreate);
                 after(runtime, "jsxs", onCreate);
             }),
         );
+        waitFor(filters.byProps("createElement", "useState", "useEffect"), react => {
+            after(react, "createElement", onCreate);
+        });
     },
 });
 

@@ -458,6 +458,16 @@ for (const platform of ["desktop", "mobile", "web", "embedded"])
         assert.ok(existsSync(new URL(`../../assets/badges/${platform}-${status}.png`, import.meta.url)), `${platform}-${status}.png`);
 assert.equal(shown.props.label, "Téléphone");
 assert.equal(__r(29).jsxs(RenderedBadge, { id: "real" }).props.source, undefined, "Discord's badges untouched");
+// Whatever component draws it, the image Discord builds from our badge's
+// `icon` gets our URL (jsx runtime and classic createElement).
+assert.equal(badges[1].icon, "jzs_platform_mobile_idle");
+function BadgeImage() {}
+const cdnImage = __r(29).jsx(BadgeImage, { source: { uri: `https://cdn.discordapp.com/badge-icons/${badges[1].icon}.png?size=96` } });
+assert.match(cdnImage.props.source.uri, /\/assets\/badges\/mobile-idle\.png$/);
+const classic = React.createElement("Image", { source: [{ uri: `https://cdn.discordapp.com/badge-icons/${badges[0].icon}.png` }] });
+assert.match(classic.props.source.uri, /\/assets\/badges\/desktop-online\.png$/);
+const otherImage = __r(29).jsx(BadgeImage, { source: { uri: "https://cdn.discordapp.com/badge-icons/abc.png" } });
+assert.equal(otherImage.props.source.uri, "https://cdn.discordapp.com/badge-icons/abc.png", "other images untouched");
 
 await run(vercorsCmd, { action: "disable", plugin: "PlatformIndicators" });
 calls.pop();
