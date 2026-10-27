@@ -17,11 +17,20 @@ export interface PluginContext {
     cleanup: (fn: () => void) => void;
 }
 
+/** A setting shown under the plugin in JZSCord's settings page. */
+export interface PluginOption {
+    key: string;
+    label: string;
+    choices: { value: string; label: string }[];
+    default: string;
+}
+
 export interface PluginDef {
     name: string;
     description: string;
     authors: string[];
     enabledByDefault?: boolean;
+    options?: PluginOption[];
     start?: (ctx: PluginContext) => void;
     stop?: () => void;
 }
@@ -90,8 +99,21 @@ export function stopPlugin(plugin: PluginDef) {
     }
 }
 
+export function getPluginOption(plugin: PluginDef, key: string): string {
+    const option = plugin.options?.find(o => o.key === key);
+    const value = settings.plugins[plugin.name]?.options?.[key];
+    return option?.choices.some(c => c.value === value) ? value! : option?.default ?? "";
+}
+
+/** Plugins read their options when they run, so a change applies right away. */
+export function setPluginOption(plugin: PluginDef, key: string, value: string) {
+    const entry = (settings.plugins[plugin.name] ??= {});
+    entry.options = { ...entry.options, [key]: value };
+    saveSettings();
+}
+
 export function setPluginEnabled(plugin: PluginDef, enabled: boolean) {
-    settings.plugins[plugin.name] = { enabled };
+    settings.plugins[plugin.name] = { ...settings.plugins[plugin.name], enabled };
     saveSettings();
     if (enabled) startPlugin(plugin);
     else stopPlugin(plugin);

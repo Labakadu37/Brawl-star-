@@ -64,13 +64,16 @@ function renderPlatformIconsPng(entries: [string, string][]): number[] {
     }
 
     const pixels = new Array(SIZE * SIZE).fill(0);
-    const cell = SIZE / entries.length;
-    const iconSize = Math.min(cell, SIZE) * (entries.length > 1 ? 0.95 : 1);
+    // Keep a margin: badge slots crop or round the image's edges.
+    const margin = SIZE * 0.1;
+    const usable = SIZE - 2 * margin;
+    const cell = usable / entries.length;
+    const iconSize = Math.min(cell * (entries.length > 1 ? 0.9 : 1), usable);
     entries.forEach(([platform, status], i) => {
         const icon = ICONS[platform];
         if (!icon) return;
         const colorIndex = colors.indexOf(STATUS_COLORS[status] ?? STATUS_COLORS.online);
-        const left = i * cell + (cell - iconSize) / 2;
+        const left = margin + i * cell + (cell - iconSize) / 2;
         const top = (SIZE - iconSize) / 2;
         for (let py = Math.floor(top); py < Math.ceil(top + iconSize); py++) {
             for (let px = Math.floor(left); px < Math.ceil(left + iconSize); px++) {

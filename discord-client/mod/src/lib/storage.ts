@@ -8,7 +8,7 @@ import { logger } from "./logger";
 const SETTINGS_PATH = "vercors/settings.json";
 
 export interface Settings {
-    plugins: Record<string, { enabled: boolean }>;
+    plugins: Record<string, { enabled?: boolean; options?: Record<string, string> }>;
 }
 
 export const settings: Settings = { plugins: {} };

@@ -7,7 +7,7 @@ import { initCommands } from "./lib/commands";
 import { logger } from "./lib/logger";
 import * as metro from "./lib/metro";
 import * as patcher from "./lib/patcher";
-import { findPlugin, getPlugins, setPluginEnabled, startEnabledPlugins } from "./lib/plugins";
+import { findPlugin, getPluginOption, getPlugins, setPluginEnabled, setPluginOption, startEnabledPlugins } from "./lib/plugins";
 import { initSettingsUI } from "./lib/settingsUI";
 import { registerBuiltinPlugins } from "./plugins";
 import { registerSettingsCommand } from "./settingsCommand";
@@ -30,7 +30,7 @@ function start() {
     // Discord freezes some module exports, which would make them impossible to patch.
     Object.freeze = Object.seal = ((o: unknown) => o) as any;
     metro.installMetroHook();
-    g.jzscord = { version: __VERCORS_VERSION__, metro, patcher, plugins: { getPlugins, findPlugin, setPluginEnabled } };
+    g.jzscord = { version: __VERCORS_VERSION__, metro, patcher, plugins: { getPlugins, findPlugin, setPluginEnabled, getPluginOption, setPluginOption } };
 
     registerBuiltinPlugins();
     registerSettingsCommand();

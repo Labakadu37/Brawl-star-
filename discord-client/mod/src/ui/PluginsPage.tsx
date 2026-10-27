@@ -1,6 +1,6 @@
 import { getLogHistory } from "../lib/logger";
 import { filters, find } from "../lib/metro";
-import { getPlugins, isRunning, setPluginEnabled } from "../lib/plugins";
+import { getPluginOption, getPlugins, isRunning, setPluginEnabled, setPluginOption } from "../lib/plugins";
 import { findComponent, getReactNative, h, useEffect, useState } from "../lib/react";
 
 const MUTED = "#949ba4";
@@ -61,7 +61,7 @@ export function PluginsPage() {
     return (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
             <Group title="Plugins">
-                {getPlugins().map(plugin => (
+                {getPlugins().flatMap(plugin => [
                     <SwitchRow
                         key={plugin.name}
                         label={plugin.name}
@@ -71,8 +71,24 @@ export function PluginsPage() {
                             setPluginEnabled(plugin, enabled);
                             rerender(n => n + 1);
                         }}
-                    />
-                ))}
+                    />,
+                    // Options of a running plugin: tap to go to the next choice.
+                    ...(isRunning(plugin.name) ? plugin.options ?? [] : []).map(option => {
+                        const current = getPluginOption(plugin, option.key);
+                        const index = option.choices.findIndex(c => c.value === current);
+                        const next = option.choices[(index + 1) % option.choices.length];
+                        return (
+                            <Row
+                                key={`${plugin.name}.${option.key}`}
+                                label={`   ↳ ${option.label} : ${option.choices[index]?.label ?? current}`}
+                                onPress={() => {
+                                    setPluginOption(plugin, option.key, next.value);
+                                    rerender(n => n + 1);
+                                }}
+                            />
+                        );
+                    }),
+                ])}
             </Group>
             <Text style={{ height: 16 }} />
             <Group title="Journal">

@@ -331,15 +331,41 @@ assert.equal(rowFor("gone").clanBadgeUrl, undefined, "offline platforms are hidd
 assert.equal(rowFor("unknown").clanBadgeUrl, undefined);
 // Our own platforms come from our sessions (desktop + mobile, best status each).
 assert.ok(rowFor("me").clanBadgeUrl.includes("desktop_online_mobile_online"), rowFor("me").clanBadgeUrl);
-// Someone showing a server tag keeps it; the badge falls back to the tag slot.
+// Someone showing a server tag keeps it; the badge moves to the next free slot.
 const withClan = rowFor("pcAndPhone", { clanTag: "JZBS", clanBadgeUrl: "https://cdn/clan.png" });
 assert.equal(withClan.clanTag, "JZBS");
 assert.equal(withClan.clanBadgeUrl, "https://cdn/clan.png");
-assert.equal(withClan.tagIconUrl, pcAndPhone.clanBadgeUrl);
-assert.equal(withClan.tagVerified, false);
-assert.equal(withClan.tagAccessibilityLabel, "PC, Téléphone");
-const withBoth = rowFor("pcAndPhone", { clanTag: "JZBS", tagText: "APP" });
-assert.equal(withBoth.tagText, "APP", "real app tags are kept");
+assert.equal(withClan.roleIcon, undefined, "no role icon seen yet to copy");
+assert.equal(withClan.lobbyTagIconUrl, pcAndPhone.clanBadgeUrl);
+const everythingTaken = rowFor("pcAndPhone", { clanTag: "JZBS", lobbyTagIconUrl: "x", tagText: "APP" });
+assert.equal(everythingTaken.tagText, "APP", "real app tags are kept");
+// Once a real role icon is seen, ours copies its shape.
+rowFor("pcAndPhone", { clanTag: "JZBS", roleIcon: { source: { uri: "https://cdn/role.png" }, name: "Mask", size: 20 } });
+const withRole = rowFor("pcAndPhone", { clanTag: "JZBS" });
+assert.deepEqual(withRole.roleIcon, { source: { uri: pcAndPhone.clanBadgeUrl }, name: "Mask", size: 20 });
+// The slot can be chosen in the settings, and applies right away.
+const piPlugin = vercors.plugins.findPlugin("PlatformIndicators");
+assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "auto");
+vercors.plugins.setPluginOption(piPlugin, "slot", "tag");
+const inTag = rowFor("pcAndPhone");
+assert.equal(inTag.tagIconUrl, pcAndPhone.clanBadgeUrl);
+assert.equal(inTag.clanTag, undefined);
+vercors.plugins.setPluginOption(piPlugin, "slot", "lobby");
+assert.equal(rowFor("pcAndPhone").lobbyTagIconUrl, pcAndPhone.clanBadgeUrl);
+vercors.plugins.setPluginOption(piPlugin, "slot", "bogus");
+assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "auto", "unknown values fall back to the default");
+vercors.plugins.setPluginOption(piPlugin, "slot", "auto");
+// In the settings page, the option shows under the plugin and cycles on tap.
+let page;
+TestRenderer.act(() => void (page = TestRenderer.create(React.createElement(Page))));
+const optionRow = () =>
+    page.root.findAll(n => n.type === "Pressable").find(p => /Emplacement/.test(p.findByType("Text").props.children));
+assert.equal(optionRow().findByType("Text").props.children, "   ↳ Emplacement : Auto");
+TestRenderer.act(() => optionRow().props.onPress());
+assert.equal(optionRow().findByType("Text").props.children, "   ↳ Emplacement : Tag de serveur");
+assert.equal(vercors.plugins.getPluginOption(piPlugin, "slot"), "clan");
+TestRenderer.act(() => page.unmount());
+vercors.plugins.setPluginOption(piPlugin, "slot", "auto");
 await run(vercorsCmd, { action: "disable", plugin: "PlatformIndicators" });
 calls.pop();
 assert.equal(rowFor("pcAndPhone").clanBadgeUrl, undefined);
