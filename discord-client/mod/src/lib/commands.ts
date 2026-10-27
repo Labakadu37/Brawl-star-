@@ -80,14 +80,35 @@ export function registerCommand(def: CommandDef): () => void {
 }
 
 export function initCommands() {
+    let loggedShape = false;
     waitFor(filters.byProps("getBuiltInCommands"), module => {
         logger.log("Commands module found, adding", registered.length, "command(s)");
+        logger.log("Commands module keys:", Object.keys(module).join(","));
         // getBuiltInCommands(type | type[], includeHidden, ...)
         after(module, "getBuiltInCommands", ([type], result) => {
             if (!Array.isArray(result)) return;
+            // Log a real built-in command once, to learn how its icon/section
+            // is represented (for a future JZCord section with our logo).
+            if (!loggedShape && result.length) {
+                loggedShape = true;
+                const sample = result.find(c => c && c.name) ?? result[0];
+                logger.log("Built-in command shape:", Object.keys(sample).join(","));
+                logger.log("Built-in command section fields:", {
+                    applicationId: sample.applicationId,
+                    section: sample.__registeredSection ?? sample.section,
+                    icon: sample.icon,
+                    id: sample.id,
+                });
+            }
             const wanted = (command: any) =>
                 type == null || (Array.isArray(type) ? type.includes(command.type) : type === command.type);
             return result.concat(registered.filter(wanted));
         });
     });
+
+    // Log how command sections are built, to add a JZCord one later.
+    waitFor(
+        m => typeof m?.getBuiltInSectionsWithCommands === "function" || typeof m?.useApplicationCommandSections === "function" || typeof m?.getApplicationSections === "function",
+        sections => logger.log("Command sections module keys:", Object.keys(sections).join(",")),
+    );
 }
