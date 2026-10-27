@@ -374,9 +374,17 @@ const plugin: PluginDef = definePlugin({
         // badge, it ends up creating an image whose URL contains the marker
         // from `icon`: rewrite that URL. Components that receive the badge id
         // (RenderedBadge, as in Revenge) also get our source and label.
+        // Diagnostic: find the component that draws the status dot / mobile
+        // icon on avatars, to put our platform icon there later. Logs each
+        // matching component name once, with its prop names.
+        const STATUS_NAME = /status|presence|mobile|avatardecoration|onlineindicator/i;
         const onCreate = ([Component]: any[], element: any) => {
             const props = element?.props;
             if (!props || typeof props !== "object") return;
+            const name = Component?.displayName ?? Component?.name;
+            if (typeof name === "string" && STATUS_NAME.test(name)) {
+                logOnce(`status-ish component ${name}`, Object.keys(props).join(","));
+            }
             if (typeof props.id === "string" && props.id.startsWith("jzs-platform-")) {
                 logOnce(`badge drawn by ${Component?.displayName ?? Component?.name ?? typeof Component}`, Object.keys(props).join(","));
                 const ours = profileBadgeProps.get(props.id);
