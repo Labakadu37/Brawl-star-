@@ -1,4 +1,4 @@
-name: JZSCord (Discord mobile)
+name: JZCord (Discord mobile)
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: jzscord
+          name: jzcord
           path: |
             discord-client/xposed/app/build/outputs/apk/release/app-release.apk
             discord-client/mod/dist/vercors.js

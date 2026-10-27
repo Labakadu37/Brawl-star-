@@ -4,7 +4,7 @@ import { definePlugin } from "../lib/plugins";
 export default definePlugin({
     name: "Experiments",
     description: "Débloque le menu développeur et les expériences de Discord dans les paramètres",
-    authors: ["JZSCord"],
+    authors: ["JZCord"],
     start({ waitFor, cleanup }) {
         // Matched on the module (not the store) so its `default` can be swapped.
         waitFor(

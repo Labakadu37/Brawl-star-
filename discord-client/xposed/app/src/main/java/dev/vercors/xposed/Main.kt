@@ -12,8 +12,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage
 import org.json.JSONObject
 import java.io.File
 
-const val TAG = "JZSCord"
-const val LOADER_VERSION = "0.7.3"
+const val TAG = "JZCord"
+const val LOADER_VERSION = "0.8.0"
 
 fun log(message: String) {
     Log.i(TAG, message)
@@ -53,21 +53,21 @@ class Main : IXposedHookZygoteInit, IXposedHookLoadPackage {
         val bundle = bundles.prepare()
         if (bundle == null) {
             log("No JS bundle available, Discord will start unmodded")
-            toast("JZSCord : bundle JS introuvable")
+            toast("JZCord : bundle JS introuvable")
             return
         }
 
         val preload = File(dir, "preload.js")
         val loaderInfo = JSONObject()
-            .put("name", "JZSCordXposed")
+            .put("name", "JZCordXposed")
             .put("version", LOADER_VERSION)
             .put("bundleSource", bundle.source)
             .put("dataDir", dir.absolutePath)
             .put("settings", settings.read())
         preload.writeText("globalThis.__VERCORS_LOADER__ = $loaderInfo;\n")
 
-        val injector = ScriptInjector(listOf(preload, bundle.file)) { toast("JZSCord injecté ✓") }
-        if (injector.install(lpparam.classLoader) == 0) toast("JZSCord : chargeur React Native introuvable")
+        val injector = ScriptInjector(listOf(preload, bundle.file)) { toast("JZCord injecté ✓") }
+        if (injector.install(lpparam.classLoader) == 0) toast("JZCord : chargeur React Native introuvable")
         bundles.refreshRemoteInBackground()
     }
 }

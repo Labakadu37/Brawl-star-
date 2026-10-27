@@ -23,7 +23,7 @@ export function replaceLockedEmojis(channelId: string, message: any) {
 export default definePlugin({
     name: "FakeNitro",
     description: "Utilise tous les emojis (animés, autres serveurs) sans Nitro : ils sont envoyés en image",
-    authors: ["JZSCord"],
+    authors: ["JZCord"],
     start({ waitFor, instead, before }) {
         // Unlock the emoji picker.
         waitFor(filters.byProps("canUseEmojisEverywhere", "canUseAnimatedEmojis"), premium => {

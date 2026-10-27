@@ -51,6 +51,9 @@ __d((g, r, d, a, module) => {
         Text: "Text",
         Switch: "Switch",
         Pressable: "Pressable",
+        Image: function Image() {
+            return null;
+        },
         processColor: color => `processed(${color})`,
         ToastAndroid: { SHORT: 0, show: message => calls.push(["toast", message]) },
     };
@@ -216,7 +219,7 @@ __d((g, r, d, a, module) => {
 for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
-const { jzscord: vercors } = globalThis;
+const { jzcord: vercors } = globalThis;
 assert.equal(typeof vercors.version, "string");
 
 assert.ok(calls.some(c => c[0] === "toast" && /chargé/.test(c[1])), "load toast shown");
@@ -237,12 +240,12 @@ assert.equal((await __r(5).post({ url: "/channels/1/messages" })).real.url, "/ch
 // Commands are appended to Discord's built-ins.
 const commands = __r(3).getBuiltInCommands(1);
 assert.equal(commands[0].name, "shrug");
-const vercorsCmd = commands.find(c => c.name === "jzscord");
+const vercorsCmd = commands.find(c => c.name === "jzcord");
 assert.ok(vercorsCmd, "/vercors registered");
 assert.match(vercorsCmd.id, /^-\d+$/);
-assert.equal(vercorsCmd.untranslatedName, "jzscord");
-assert.ok(!__r(3).getBuiltInCommands(2).some(c => c.name === "jzscord"), "filtered by command type");
-assert.ok(__r(3).getBuiltInCommands([1, 2]).some(c => c.name === "jzscord"));
+assert.equal(vercorsCmd.untranslatedName, "jzcord");
+assert.ok(!__r(3).getBuiltInCommands(2).some(c => c.name === "jzcord"), "filtered by command type");
+assert.ok(__r(3).getBuiltInCommands([1, 2]).some(c => c.name === "jzcord"));
 assert.ok(!commands.some(c => c.name === "eval"), "/eval only with DevTools");
 
 const run = (cmd, args) =>
@@ -299,8 +302,9 @@ assert.ok(!logs.some(l => l.includes("not a function")), "proxy module must not 
 const config = __r(11).SETTING_RENDERER_CONFIG;
 assert.ok(config.ACCOUNT, "Discord's rows are kept");
 assert.equal(config.VERCORS.type, "pressable");
+assert.match(config.VERCORS.icon.uri, /\/discord-client\/assets\/logo\/jzcord\.png$/, "our logo on the settings row");
 const { list } = __r(12).createList({ sections: [{ label: "Compte", settings: ["ACCOUNT"] }, { label: "App", settings: ["X"] }] });
-assert.deepEqual(list.map(s => s.label), ["Compte", "JZSCord", "App"]);
+assert.deepEqual(list.map(s => s.label), ["Compte", "JZCord", "App"]);
 config.VERCORS.onPress();
 assert.equal(navigations.pop()[0], "VERCORS_PAGE");
 
@@ -308,6 +312,9 @@ assert.equal(navigations.pop()[0], "VERCORS_PAGE");
 const Page = config.VERCORS_PAGE.screen.getComponent();
 let renderer;
 TestRenderer.act(() => void (renderer = TestRenderer.create(React.createElement(Page))));
+const header = renderer.root.findAll(n => n.type?.name === "Image");
+assert.equal(header.length, 1, "logo at the top of the page");
+assert.match(header[0].props.source.uri, /jzcord\.png$/);
 const switchFor = label =>
     renderer.root.findAll(n => n.type === "View" && n.props.style?.flexDirection === "row")
         .find(row => row.findAllByType("Text").some(t => t.props.children === label))
@@ -570,7 +577,7 @@ await run(builtIns.find(c => c.name === "timestamp"), { minutes: 0 });
 assert.match(calls.pop()[2], /^<t:\d+:F> \(<t:\d+:R>\)$/);
 
 TestRenderer.act(() => renderer.unmount());
-assert.ok(!logs.some(l => l.startsWith("[JZSCord] ") && /failed|threw/i.test(l) && !/eval/.test(l)), logs.filter(l => /failed|threw/i.test(l)).join("\n"));
+assert.ok(!logs.some(l => l.startsWith("[JZCord] ") && /failed|threw/i.test(l) && !/eval/.test(l)), logs.filter(l => /failed|threw/i.test(l)).join("\n"));
 
 if (process.env.SHOW_LOGS) console.log(logs.join("\n"));
 console.log("smoke test passed");

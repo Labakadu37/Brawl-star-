@@ -1,4 +1,4 @@
-# JZSCord
+# JZCord
 
 > Anciennement « Vercors ». Le nom technique du module (`dev.vercors.xposed`)
 > ne change pas, pour que les mises à jour s'installent par-dessus.
@@ -54,30 +54,30 @@ plugins.
 | ClearURLs | ✅ | Retire `utm_*`, `fbclid`, `si`, les paramètres TikTok… des liens que tu envoies |
 | MoreCommands | ❌ | `/lenny`, `/reverse`, `/mock`, `/owo`, `/upper`, `/lower`, `/flip`, `/roll`, `/timestamp` |
 | Experiments | ❌ | Débloque le menu développeur / expériences de Discord |
-| DevTools | ❌ | Ajoute `/eval` pour explorer Discord (`jzscord.metro.findByProps(...)`) |
+| DevTools | ❌ | Ajoute `/eval` pour explorer Discord (`jzcord.metro.findByProps(...)`) |
 
-**Réglages** : *Paramètres Discord → section **JZSCord** → Plugins JZSCord*.
+**Réglages** : *Paramètres Discord → section **JZCord** → Plugins JZCord*.
 Les interrupteurs s'appliquent tout de suite. La page a aussi un **journal**
 (afficher / copier) pour diagnostiquer un plugin qui ne marche pas.
 
-Les commandes `/jzscord` restent disponibles :
+Les commandes `/jzcord` restent disponibles :
 
-- `/jzscord action:liste` : liste des plugins (🟢 = actif)
-- `/jzscord action:activer plugin:SilentTyping`
-- `/jzscord action:chercher plugin:typing` : modules Discord dont une propriété contient ce mot
-- `/jzscord action:infos` : version, loader, modules chargés
+- `/jzcord action:liste` : liste des plugins (🟢 = actif)
+- `/jzcord action:activer plugin:SilentTyping`
+- `/jzcord action:chercher plugin:typing` : modules Discord dont une propriété contient ce mot
+- `/jzcord action:infos` : version, loader, modules chargés
 
 ## Récupérer l'APK
 
 **Sans ordinateur** : à chaque push, GitHub Actions compile tout
-(workflow *JZSCord (Discord mobile)*). Ouvre l'onglet **Actions** du dépôt,
-le dernier run, puis télécharge l'artefact `jzscord` : il contient
+(workflow *JZCord (Discord mobile)*). Ouvre l'onglet **Actions** du dépôt,
+le dernier run, puis télécharge l'artefact `jzcord` : il contient
 `app-release.apk` (le module) et `vercors.js`.
 
 **Sur PC** :
 
 ```bash
-cd discord-client/mod && npm install && npm test   # → dist/jzscord.js
+cd discord-client/mod && npm install && npm test   # → dist/jzcord.js
 cd ../xposed && ./gradlew assembleRelease          # → app/build/outputs/apk/release/app-release.apk
 ```
 
@@ -90,33 +90,40 @@ cd ../xposed && ./gradlew assembleRelease          # → app/build/outputs/apk/r
 1. Installe l'APK du module (`app-release.apk`).
 2. Installe un **LSPatch** à jour (le fork maintenu de JingMatrix, ou NPatch).
 3. Dans LSPatch : *Gérer → + → Sélectionner une app installée → Discord*,
-   mode **Intégré** (« Integrated »), *Embed modules* → coche **JZSCord**,
+   mode **Intégré** (« Integrated »), *Embed modules* → coche **JZCord**,
    puis *Start Patch*.
 4. Désinstalle Discord, puis installe l'APK patché que LSPatch a produit
    (la signature change, d'où la désinstallation). Reconnecte-toi.
 
 ### Avec root : LSPosed
 
-Installe l'APK du module, active **JZSCord** dans LSPosed avec la portée
+Installe l'APK du module, active **JZCord** dans LSPosed avec la portée
 `com.discord`, puis force l'arrêt de Discord et relance-le.
+
+### L'icône JZCord sur l'écran d'accueil
+
+Le module installe une icône **JZCord** (le logo du mod) qui ouvre Discord.
+Android ne permet pas de changer le nom et l'icône de Discord lui-même sans
+modifier son APK : masque l'icône Discord d'origine (Samsung : appui long sur
+l'écran d'accueil → Paramètres → Masquer les applications) et garde JZCord.
 
 ### Vérifier
 
-Tape `/jzscord` dans un salon : si la commande apparaît, le mod est chargé.
+Tape `/jzcord` dans un salon : si la commande apparaît, le mod est chargé.
 Sinon, regarde les logs :
 
 ```bash
-adb logcat | grep -E "JZSCord|LSPosed"
+adb logcat | grep -E "JZCord|LSPosed"
 ```
 
 ## Mettre à jour le mod sans réinstaller l'APK
 
 Le module peut télécharger `vercors.js` depuis une URL au lieu d'utiliser la
 copie embarquée. Crée
-`/data/data/com.discord/files/jzscord/loader.json` (nécessite root) :
+`/data/data/com.discord/files/jzcord/loader.json` (nécessite root) :
 
 ```json
-{ "bundleUrl": "https://exemple.com/jzscord.js" }
+{ "bundleUrl": "https://exemple.com/jzcord.js" }
 ```
 
 Le téléchargement se fait en arrière-plan et sert au lancement suivant.
@@ -152,13 +159,13 @@ export default definePlugin({
 Tout ce qu'un plugin fait via son contexte (patchs, `waitFor`, commandes) est
 annulé automatiquement quand on le désactive. Pour trouver les modules
 Discord, active DevTools et utilise par exemple
-`/eval code:Object.keys(jzscord.metro.findByProps("sendMessage"))`.
+`/eval code:Object.keys(jzcord.metro.findByProps("sendMessage"))`.
 
 ## Limites connues
 
 - Les noms de modules / propriétés Discord changent avec les mises à jour :
   un plugin peut cesser de marcher (il ne fait alors rien, sans planter l'app).
-- Pas encore d'écran de réglages dans l'UI Discord : tout passe par `/jzscord`.
+- Pas encore d'écran de réglages dans l'UI Discord : tout passe par `/jzcord`.
 - Testé ici avec un faux runtime Metro (`npm test`) ; le chargement réel
-  dépend de la version de Discord installée. Si `/jzscord` n'apparaît pas,
+  dépend de la version de Discord installée. Si `/jzcord` n'apparaît pas,
   envoie les logs `adb logcat`.

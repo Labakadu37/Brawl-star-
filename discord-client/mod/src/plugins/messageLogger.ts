@@ -88,7 +88,7 @@ function rewrite(action: any) {
 export default definePlugin({
     name: "MessageLogger",
     description: "Garde les messages supprimés (en rouge) et les anciennes versions des messages modifiés (✏️), jusqu'au redémarrage",
-    authors: ["JZSCord"],
+    authors: ["JZCord"],
     start({ waitFor, before, after, cleanup }) {
         waitFor(dispatcherFilter, dispatcher => {
             // Gateway events go through the interceptors, local ones through dispatch().

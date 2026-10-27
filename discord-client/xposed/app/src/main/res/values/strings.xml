@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">JZSCord</string>
+    <string name="app_name">JZCord</string>
     <string name="xposed_description">Mod client pour Discord : plugins, anti-pistage, commandes.</string>
     <string-array name="xposed_scope">
         <item>com.discord</item>

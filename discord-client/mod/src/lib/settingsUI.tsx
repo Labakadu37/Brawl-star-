@@ -1,15 +1,16 @@
-// Adds a "JZSCord" section to Discord's own settings screen, the way Revenge
+// Adds a "JZCord" section to Discord's own settings screen, the way Revenge
 // does: rows are declared in SETTING_RENDERER_CONFIG, and the section is
 // inserted into the list built by createList().
 
 import { findAssetId } from "./assets";
+import { LOGO_URL } from "./branding";
 import { logger } from "./logger";
 import { filters, find, waitFor } from "./metro";
 import { after } from "./patcher";
-import { createErrorBoundary, findComponent, h } from "./react";
+import { createErrorBoundary, findComponent, getReactNative, h, isComponent } from "./react";
 import { PluginsPage } from "../ui/PluginsPage";
 
-const SECTION_TITLE = "JZSCord";
+const SECTION_TITLE = "JZCord";
 const ROW_KEY = "VERCORS";
 const PAGE_ROUTE = "VERCORS_PAGE";
 
@@ -27,25 +28,34 @@ function PageRoute() {
 function openPage() {
     const navigation = find(filters.byProps("getRootNavigationRef"))?.getRootNavigationRef?.();
     if (!navigation) return logger.error("Settings: navigation not found");
-    navigation.navigate(PAGE_ROUTE, { title: "JZSCord" });
+    navigation.navigate(PAGE_ROUTE, { title: "JZCord" });
+}
+
+// Our logo, drawn as a plain image: TableRow.Icon tints its icon to one color.
+function LogoIcon() {
+    const Image = getReactNative()?.Image;
+    return isComponent(Image) ? <Image source={{ uri: LOGO_URL }} style={{ width: 24, height: 24, borderRadius: 6 }} /> : null;
 }
 
 function rows() {
-    const icon = findAssetId("PuzzlePieceIcon") ?? findAssetId("SettingsIcon");
+    const fallbackIcon = findAssetId("PuzzlePieceIcon") ?? findAssetId("SettingsIcon");
     const TableRow = findComponent("TableRow");
+    const hasImage = isComponent(getReactNative()?.Image);
     return {
         [PAGE_ROUTE]: {
             type: "route",
-            title: () => "JZSCord",
-            useTitle: () => "JZSCord",
+            title: () => "JZCord",
+            useTitle: () => "JZCord",
             screen: { route: PAGE_ROUTE, getComponent: () => PageRoute },
         },
         [ROW_KEY]: {
             type: "pressable",
-            title: () => "Plugins JZSCord",
-            useTitle: () => "Plugins JZSCord",
-            icon,
-            IconComponent: () => (icon != null && TableRow?.Icon ? <TableRow.Icon source={icon} /> : null),
+            title: () => "Plugins JZCord",
+            useTitle: () => "Plugins JZCord",
+            icon: hasImage ? { uri: LOGO_URL } : fallbackIcon,
+            IconComponent: hasImage
+                ? LogoIcon
+                : () => (fallbackIcon != null && TableRow?.Icon ? <TableRow.Icon source={fallbackIcon} /> : null),
             useTrailing: () => `v${__VERCORS_VERSION__}`,
             onPress: openPage,
             withArrow: true,

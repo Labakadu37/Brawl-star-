@@ -17,7 +17,7 @@ export interface PluginContext {
     cleanup: (fn: () => void) => void;
 }
 
-/** A setting shown under the plugin in JZSCord's settings page. */
+/** A setting shown under the plugin in JZCord's settings page. */
 export interface PluginOption {
     key: string;
     label: string;

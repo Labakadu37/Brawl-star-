@@ -2,7 +2,7 @@
 // reads them. We run before React Native defines `console`, so use the native
 // hook it is built on when available.
 
-const PREFIX = "[JZSCord]";
+const PREFIX = "[JZCord]";
 const enum Level {
     Info = 1,
     Warn = 2,

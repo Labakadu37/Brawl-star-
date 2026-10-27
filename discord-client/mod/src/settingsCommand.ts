@@ -7,8 +7,8 @@ import { findPlugin, getPlugins, isRunning, setPluginEnabled } from "./lib/plugi
 
 export function registerSettingsCommand() {
     registerCommand({
-        name: "jzscord",
-        description: "Gérer les plugins JZSCord",
+        name: "jzcord",
+        description: "Gérer les plugins JZCord",
         options: [
             {
                 name: "action",
@@ -28,14 +28,14 @@ export function registerSettingsCommand() {
         execute({ action, plugin: pluginName }, { reply }) {
             if (action === "list") {
                 const lines = getPlugins().map(p => `${isRunning(p.name) ? "🟢" : "⚪"} **${p.name}** — ${p.description}`);
-                reply(`**Plugins JZSCord**\n${lines.join("\n")}`);
+                reply(`**Plugins JZCord**\n${lines.join("\n")}`);
                 return;
             }
             if (action === "info") {
                 const { defined, initialized } = getModuleStats();
                 const loader = (globalThis as any).__VERCORS_LOADER__;
                 reply(
-                    `**JZSCord** v${__VERCORS_VERSION__}\n` +
+                    `**JZCord** v${__VERCORS_VERSION__}\n` +
                         `Loader : ${loader ? `${loader.name} v${loader.version} (bundle ${loader.bundleSource})` : "inconnu"}\n` +
                         `Modules Discord : ${initialized} chargés / ${defined} définis`,
                 );

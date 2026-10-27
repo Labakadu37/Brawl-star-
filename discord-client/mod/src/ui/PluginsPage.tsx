@@ -1,7 +1,8 @@
+import { LOGO_URL } from "../lib/branding";
 import { getLogHistory } from "../lib/logger";
 import { filters, find } from "../lib/metro";
 import { getPluginOption, getPlugins, isRunning, setPluginEnabled, setPluginOption } from "../lib/plugins";
-import { findComponent, getReactNative, h, useEffect, useState } from "../lib/react";
+import { findComponent, getReactNative, h, isComponent, useEffect, useState } from "../lib/react";
 
 const MUTED = "#949ba4";
 const TEXT = "#dbdee1";
@@ -51,7 +52,7 @@ export function PluginsPage() {
     const [showLogs, setShowLogs] = useState(false);
 
     const navigation = find(filters.byProps("NavigationContainer", "useNavigation"))?.useNavigation?.();
-    useEffect(() => void navigation?.setOptions?.({ title: "JZSCord" }), []);
+    useEffect(() => void navigation?.setOptions?.({ title: "JZCord" }), []);
 
     const copyLogs = () => {
         find(filters.byProps("setString", "getString"))?.setString(getLogHistory());
@@ -60,6 +61,13 @@ export function PluginsPage() {
 
     return (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+            {isComponent(ReactNative.Image) ? (
+                <ReactNative.View style={{ alignItems: "center", marginBottom: 16 }}>
+                    <ReactNative.Image source={{ uri: LOGO_URL }} style={{ width: 96, height: 96, borderRadius: 22 }} />
+                    <Text style={{ color: TEXT, fontSize: 20, fontWeight: "bold", marginTop: 8 }}>JZCord</Text>
+                    <Text style={{ color: MUTED, fontSize: 12 }}>v{__VERCORS_VERSION__}</Text>
+                </ReactNative.View>
+            ) : null}
             <Group title="Plugins">
                 {getPlugins().flatMap(plugin => [
                     <SwitchRow
@@ -101,7 +109,7 @@ export function PluginsPage() {
                 </Text>
             ) : null}
             <Text style={{ color: MUTED, fontSize: 12, textAlign: "center", marginTop: 24 }}>
-                JZSCord v{__VERCORS_VERSION__} · les changements s'appliquent tout de suite
+                JZCord v{__VERCORS_VERSION__} · les changements s'appliquent tout de suite
             </Text>
         </ScrollView>
     );

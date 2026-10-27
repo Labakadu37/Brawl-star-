@@ -224,7 +224,7 @@ const profileBadgeProps = new Map<string, Record<string, unknown>>();
 const plugin: PluginDef = definePlugin({
     name: "PlatformIndicators",
     description: "Badges PC, téléphone, navigateur ou console, en couleur du statut, dans le chat et les profils",
-    authors: ["JZSCord"],
+    authors: ["JZCord"],
     options: [
         {
             key: "slot",

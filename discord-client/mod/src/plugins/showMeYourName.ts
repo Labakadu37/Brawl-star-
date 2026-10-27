@@ -4,7 +4,7 @@ import { definePlugin } from "../lib/plugins";
 export default definePlugin({
     name: "ShowMeYourName",
     description: "Affiche le vrai nom d'utilisateur après le surnom : « Surnom (pseudo) »",
-    authors: ["JZSCord"],
+    authors: ["JZCord"],
     start({ waitFor, after }) {
         waitFor(isRowManager, RowManager => {
             after(RowManager.prototype, "generate", ([row], result) => {

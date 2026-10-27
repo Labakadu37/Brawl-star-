@@ -4,7 +4,7 @@ import { definePlugin } from "../lib/plugins";
 export default definePlugin({
     name: "AlwaysAnimate",
     description: "Anime toujours les emojis, GIF et avatars animés dans le chat",
-    authors: ["JZSCord"],
+    authors: ["JZCord"],
     start({ waitFor, after }) {
         waitFor(isRowManager, RowManager => {
             after(RowManager.prototype, "generate", (_, result) => {

@@ -30,7 +30,7 @@ function start() {
     // Discord freezes some module exports, which would make them impossible to patch.
     Object.freeze = Object.seal = ((o: unknown) => o) as any;
     metro.installMetroHook();
-    g.jzscord = { version: __VERCORS_VERSION__, metro, patcher, plugins: { getPlugins, findPlugin, setPluginEnabled, getPluginOption, setPluginOption } };
+    g.jzcord = { version: __VERCORS_VERSION__, metro, patcher, plugins: { getPlugins, findPlugin, setPluginEnabled, getPluginOption, setPluginOption } };
 
     registerBuiltinPlugins();
     registerSettingsCommand();
@@ -47,13 +47,13 @@ function start() {
         reactNative => {
             const { defined, initialized } = metro.getModuleStats();
             logger.log(`React Native ready (${initialized}/${defined} modules)`);
-            toast(reactNative, `JZSCord v${__VERCORS_VERSION__} chargé ✓`);
+            toast(reactNative, `JZCord v${__VERCORS_VERSION__} chargé ✓`);
         },
     );
 }
 
-if (g.jzscord) {
-    logger.warn("JZSCord was injected twice, ignoring the second copy");
+if (g.jzcord) {
+    logger.warn("JZCord was injected twice, ignoring the second copy");
 } else {
     try {
         start();

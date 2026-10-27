@@ -31,7 +31,7 @@ function explain(channelOrId: any) {
 export default definePlugin({
     name: "ShowHiddenChannels",
     description: "Affiche les salons auxquels tu n'as pas accès (on ne peut pas lire leurs messages)",
-    authors: ["JZSCord"],
+    authors: ["JZCord"],
     start({ waitFor, after, instead, cleanup }) {
         waitFor(m => m.Permissions?.VIEW_CHANNEL !== undefined, constants => {
             viewChannel = constants.Permissions.VIEW_CHANNEL;
