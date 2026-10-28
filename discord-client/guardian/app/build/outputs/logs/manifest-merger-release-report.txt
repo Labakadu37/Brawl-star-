@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:2:1-39:12
-INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:2:1-39:12
-INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:2:1-39:12
-INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:2:1-39:12
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:2:1-40:12
 MERGED from [com.google.android.material:material:1.12.0] /root/.gradle/caches/8.14.3/transforms/5f7300f370742532b20193ca559d9f62/transformed/material-1.12.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /root/.gradle/caches/8.14.3/transforms/9a84792cff4833d9ecd7e72b62e2d186/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /root/.gradle/caches/8.14.3/transforms/d35b3bffcc313d49e7b9cd94f0a619e3/transformed/constraintlayout-2.0.1/AndroidManifest.xml:2:1-11:12
@@ -81,9 +81,13 @@ uses-permission#android.permission.WAKE_LOCK
 ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:10:5-68
 	android:name
 		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:10:22-65
+uses-permission#android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:11:5-95
+	android:name
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:11:22-92
 application
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:12:5-38:19
-INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:12:5-38:19
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:13:5-39:19
+INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:13:5-39:19
 MERGED from [com.google.android.material:material:1.12.0] /root/.gradle/caches/8.14.3/transforms/5f7300f370742532b20193ca559d9f62/transformed/material-1.12.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.12.0] /root/.gradle/caches/8.14.3/transforms/5f7300f370742532b20193ca559d9f62/transformed/material-1.12.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /root/.gradle/caches/8.14.3/transforms/d35b3bffcc313d49e7b9cd94f0a619e3/transformed/constraintlayout-2.0.1/AndroidManifest.xml:9:5-20
@@ -105,51 +109,51 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /root/.gradle/caches/8.14.3
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.13.1] /root/.gradle/caches/8.14.3/transforms/7121d8376603c5166a4a18d11f897d33/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
 	android:label
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:15:9-41
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:16:9-41
 	android:icon
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:14:9-43
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:15:9-43
 	android:allowBackup
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:13:9-36
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:14:9-36
 	android:theme
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:16:9-46
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:17:9-46
 activity#dev.jzcord.guardian.MainActivity
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:18:9-26:20
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:19:9-27:20
 	android:label
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:21:13-45
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:22:13-45
 	android:exported
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:20:13-36
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:21:13-36
 	android:name
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:19:13-41
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:20:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:22:13-25:29
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:23:13-26:29
 action#android.intent.action.MAIN
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:23:17-69
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:24:17-69
 	android:name
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:23:25-66
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:24:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:24:17-77
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:25:17-77
 	android:name
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:24:27-74
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:25:27-74
 service#dev.jzcord.guardian.GuardianService
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:28:9-31:56
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:29:9-32:56
 	android:exported
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:30:13-37
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:31:13-37
 	android:foregroundServiceType
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:31:13-53
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:32:13-53
 	android:name
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:29:13-44
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:30:13-44
 receiver#dev.jzcord.guardian.BootReceiver
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:33:9-37:20
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:34:9-38:20
 	android:exported
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:33:48-71
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:34:48-71
 	android:name
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:33:19-47
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:34:19-47
 intent-filter#action:name:android.intent.action.BOOT_COMPLETED
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:34:13-36:29
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:35:13-37:29
 action#android.intent.action.BOOT_COMPLETED
-ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:35:17-79
+ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:36:17-79
 	android:name
-		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:35:25-76
+		ADDED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml:36:25-76
 uses-sdk
 INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/user/Brawl-star-/discord-client/guardian/app/src/main/AndroidManifest.xml

@@ -15,4 +15,5 @@
     <string name="notification_channel">Protection JZCord</string>
     <string name="notification_title">🛡 JZCord Guardian actif</string>
     <string name="notification_text">Surveillance des sessions Discord en cours</string>
+    <string name="battery_button">🔋 Autoriser en arrière-plan (IMPORTANT)</string>
 </resources>

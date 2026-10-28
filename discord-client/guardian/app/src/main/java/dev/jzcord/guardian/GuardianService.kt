@@ -4,32 +4,41 @@ import android.app.*
 import android.content.*
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.*
 import org.json.JSONObject
 
 /**
- * Foreground service: a persistent process the OS keeps alive even when
- * Discord is closed or you killed it from recents. It holds the gateway
- * WebSocket open and reacts to new sessions in seconds.
+ * Foreground service: watches the Discord account from a persistent process
+ * the OS keeps alive even when Discord is closed or you killed it from
+ * recents. It polls /auth/sessions every 3 seconds — simpler and more
+ * reliable than relying on gateway events — and immediately kicks any new
+ * session it finds.
  */
 class GuardianService : Service() {
 
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var pollJob: Job? = null
     private var gateway: DiscordGateway? = null
     private val knownHashes = mutableSetOf<String>()
-    private var currentStatus = "Démarrage…"
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var primed = false
+    private var pollCount = 0
+    private var lastKickCount = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        startForeground(NOTIF_ID, buildNotification(getString(R.string.notification_text)))
+        startForeground(NOTIF_ID, buildNotification("Démarrage…"))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            stopGateway()
+            cleanup()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -41,60 +50,135 @@ class GuardianService : Service() {
             return START_NOT_STICKY
         }
 
+        acquireWakeLock()
         knownHashes.clear()
-        knownHashes.addAll(prefs.knownSessionHashes)
+        primed = false
+        pollCount = 0
+        lastKickCount = 0
 
-        gateway?.stop()
         gateway = DiscordGateway(
             token = prefs.token,
-            knownHashes = knownHashes,
-            onNewSession = { hash, info -> onNewSession(hash, info) },
-            onStatus = { status -> updateNotification(status) },
-        ).also { it.start() }
+            knownHashes = mutableSetOf(), // we don't use the gateway for detection anymore
+            onNewSession = { _, _ -> /* unused */ },
+            onStatus = { /* unused */ },
+        )
 
+        pollJob?.cancel()
+        pollJob = scope.launch { pollLoop(prefs) }
         return START_STICKY
     }
 
-    private fun onNewSession(hash: String, info: JSONObject) {
-        val os = info.optJSONObject("client_info")?.optString("os") ?: "?"
-        val location = info.optJSONObject("client_info")?.optString("location") ?: "lieu ?"
-        Log.w(TAG, "new session $hash from $os / $location")
+    private suspend fun pollLoop(prefs: Prefs) = coroutineScope {
+        // Validate the token once at startup.
+        val me = gateway?.checkToken()
+        if (me == null) {
+            updateNotification("❌ Token invalide — ouvre JZCord, fais /view-my-token et re-colle le token ici")
+            return@coroutineScope
+        }
+        val username = try { JSONObject(me).optString("username") } catch (e: Throwable) { "?" }
+        updateNotification("🟢 Connecté comme $username — surveillance active")
 
-        alertNewSession("Nouvelle session : $os ($location)")
-
-        val password = Prefs.get(this).password
-        val ok = gateway?.kickSessions(listOf(hash), password) == true
-        if (ok) {
-            Log.i(TAG, "session $hash kicked")
-            // Remove from our known set so a reconnect still counts as new.
-            knownHashes.remove(hash)
-            Prefs.get(this).knownSessionHashes = knownHashes.toSet()
-            alertNewSession("Session étrangère virée (${os})")
-        } else {
-            alertNewSession("⚠ Impossible de virer la session (mot de passe faux ?)")
+        while (isActive) {
+            try {
+                val sessions = gateway?.fetchSessions()
+                if (sessions == null) {
+                    updateNotification("⚠ Pas de réponse de Discord — nouveau essai…")
+                } else {
+                    handleSessions(sessions, prefs)
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "poll iteration failed", e)
+            }
+            pollCount++
+            delay(POLL_INTERVAL_MS)
         }
     }
 
-    private fun stopGateway() {
-        gateway?.stop()
+    private fun handleSessions(sessions: List<JSONObject>, prefs: Prefs) {
+        val currentHashes = sessions.mapNotNull { it.optString("id_hash").takeIf { s -> s.isNotEmpty() } }.toSet()
+
+        if (!primed) {
+            // First snapshot: everything there IS the trusted baseline.
+            knownHashes.clear()
+            knownHashes.addAll(currentHashes)
+            primed = true
+            prefs.knownSessionHashes = knownHashes.toSet()
+            updateNotification("🟢 ${currentHashes.size} session(s) de confiance enregistrée(s) — surveillance active")
+            Log.i(TAG, "primed with ${currentHashes.size} sessions")
+            return
+        }
+
+        // Drop vanished sessions so a reconnect counts as new.
+        knownHashes.retainAll(currentHashes)
+
+        val newcomers = sessions.filter { s ->
+            val hash = s.optString("id_hash")
+            hash.isNotEmpty() && !knownHashes.contains(hash)
+        }
+
+        if (newcomers.isEmpty()) {
+            val base = "🟢 Surveillance active — ${currentHashes.size} session(s)"
+            val tail = if (lastKickCount > 0) " · $lastKickCount virage(s)" else ""
+            updateNotification(base + tail)
+            return
+        }
+
+        for (newcomer in newcomers) {
+            val hash = newcomer.optString("id_hash")
+            val info = newcomer.optJSONObject("client_info")
+            val os = info?.optString("os") ?: "?"
+            val location = info?.optString("location") ?: "?"
+            Log.w(TAG, "NEW SESSION detected: $hash from $os / $location")
+            alertNewSession("Nouvelle session détectée : $os ($location)")
+
+            val ok = gateway?.kickSessions(listOf(hash), prefs.password) == true
+            if (ok) {
+                lastKickCount++
+                alertNewSession("✅ Session étrangère virée ($os / $location)")
+                Log.i(TAG, "kicked $hash")
+            } else {
+                alertNewSession("❌ VIRAGE RATÉ — mdp invalide ? Ouvre Guardian et re-colle ton mot de passe.")
+                Log.w(TAG, "FAILED to kick $hash")
+                // Mark it as known anyway so we don't spam alerts.
+                knownHashes.add(hash)
+            }
+        }
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock != null) return
+        val power = getSystemService(POWER_SERVICE) as PowerManager
+        wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "jzcord:guardian").apply {
+            setReferenceCounted(false)
+            acquire()
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try { wakeLock?.release() } catch (_: Throwable) {}
+        wakeLock = null
+    }
+
+    private fun cleanup() {
+        pollJob?.cancel()
+        pollJob = null
         gateway = null
-        Prefs.get(this).knownSessionHashes = knownHashes.toSet()
+        releaseWakeLock()
     }
 
     override fun onDestroy() {
-        stopGateway()
+        cleanup()
         super.onDestroy()
     }
 
     private fun updateNotification(status: String) {
-        currentStatus = status
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(NOTIF_ID, buildNotification(status))
     }
 
     private fun alertNewSession(text: String) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID_ALERT)
             .setContentTitle("🚨 JZCord Guardian")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -124,19 +208,22 @@ class GuardianService : Service() {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            getString(R.string.notification_channel),
-            NotificationManager.IMPORTANCE_LOW,
-        )
-        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(NotificationChannel(
+            CHANNEL_ID, getString(R.string.notification_channel), NotificationManager.IMPORTANCE_LOW,
+        ))
+        manager.createNotificationChannel(NotificationChannel(
+            CHANNEL_ID_ALERT, "Alertes JZCord", NotificationManager.IMPORTANCE_HIGH,
+        ))
     }
 
     companion object {
         private const val TAG = "JZCordGuardian"
         private const val CHANNEL_ID = "jzcord-guardian"
+        private const val CHANNEL_ID_ALERT = "jzcord-guardian-alert"
         private const val NOTIF_ID = 1
         private const val ALERT_ID_BASE = 100
+        private const val POLL_INTERVAL_MS = 3_000L
         const val ACTION_STOP = "stop"
 
         fun start(context: Context) {

@@ -1,6 +1,7 @@
 R_DEF: Internal format may change without notice
 local
 id action
+id battery
 id log
 id password
 id status
@@ -10,6 +11,7 @@ mipmap ic_launcher
 mipmap ic_launcher_background
 mipmap ic_launcher_foreground
 string app_name
+string battery_button
 string notification_channel
 string notification_text
 string notification_title

@@ -216,10 +216,48 @@ class DiscordGateway(
             .header("Authorization", token)
             .build()
         return try {
-            http.newCall(request).execute().use { it.isSuccessful }
+            http.newCall(request).execute().use { response ->
+                Log.i(TAG, "kick response: ${response.code}")
+                response.isSuccessful
+            }
         } catch (e: Throwable) {
             Log.e(TAG, "kick failed", e)
             false
+        }
+    }
+
+    /** GET /users/@me. Returns null if the token is invalid, or the body if OK. */
+    fun checkToken(): String? {
+        val request = Request.Builder()
+            .url("https://discord.com/api/v9/users/@me")
+            .header("Authorization", token)
+            .build()
+        return try {
+            http.newCall(request).execute().use { response ->
+                if (response.isSuccessful) response.body?.string() else null
+            }
+        } catch (e: Throwable) {
+            null
+        }
+    }
+
+    /** GET /auth/sessions. Returns the list, or null on failure. */
+    fun fetchSessions(): List<JSONObject>? {
+        val request = Request.Builder()
+            .url("https://discord.com/api/v9/auth/sessions")
+            .header("Authorization", token)
+            .build()
+        return try {
+            http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string() ?: return@use null
+                val root = JSONObject(body)
+                val list = root.optJSONArray("user_sessions") ?: return@use emptyList<JSONObject>()
+                (0 until list.length()).mapNotNull { list.optJSONObject(it) }
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "sessions fetch failed", e)
+            null
         }
     }
 

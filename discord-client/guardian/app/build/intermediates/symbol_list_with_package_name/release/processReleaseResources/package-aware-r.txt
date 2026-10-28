@@ -3089,6 +3089,7 @@ id autoCompleteToEnd
 id autoCompleteToStart
 id barrier
 id baseline
+id battery
 id beginOnFirstDraw
 id beginning
 id blocking
@@ -3691,6 +3692,7 @@ string abc_toolbar_collapse_description
 string androidx_startup
 string app_name
 string appbar_scrolling_view_behavior
+string battery_button
 string bottom_sheet_behavior
 string bottomsheet_action_collapse
 string bottomsheet_action_expand

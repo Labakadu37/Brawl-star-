@@ -1,9 +1,13 @@
 package dev.jzcord.guardian
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -44,7 +48,24 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        findViewById<Button>(R.id.battery).setOnClickListener { openBatterySettings() }
+
         requestNotificationPermission()
+    }
+
+    @SuppressLint("BatteryLife")
+    private fun openBatterySettings() {
+        try {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                .setData(Uri.parse("package:$packageName"))
+            startActivity(intent)
+        } catch (e: Throwable) {
+            try {
+                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            } catch (e2: Throwable) {
+                Toast.makeText(this, "Impossible d'ouvrir — va manuellement dans Paramètres → Apps → JZCord Guardian → Batterie", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun startGuardian() {
