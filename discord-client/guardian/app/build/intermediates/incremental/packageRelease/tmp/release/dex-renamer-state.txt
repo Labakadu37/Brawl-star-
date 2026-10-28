@@ -1,4 +1,4 @@
-#Wed Oct 28 17:03:41 UTC 2026
+#Wed Oct 28 17:48:42 UTC 2026
 base.0=/home/user/Brawl-star-/discord-client/guardian/app/build/intermediates/dex/release/mergeDexRelease/classes.dex
 path.0=classes.dex
 renamed.0=classes.dex

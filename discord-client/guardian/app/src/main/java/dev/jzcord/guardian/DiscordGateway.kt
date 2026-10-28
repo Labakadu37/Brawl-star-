@@ -204,30 +204,83 @@ class DiscordGateway(
 
     data class KickResult(val success: Boolean, val reason: String)
 
-    /** POSTs /auth/sessions/logout to kick the given session ids. */
-    fun kickSessions(sessionHashes: List<String>, password: String, mfa: String? = null): KickResult {
+    /** POSTs /auth/sessions/logout, handling Discord's MFA ticket flow transparently. */
+    fun kickSessions(sessionHashes: List<String>, password: String, totpCode: String? = null): KickResult {
         if (sessionHashes.isEmpty()) return KickResult(false, "aucune session à virer")
         val payload = JSONObject()
             .put("session_id_hashes", JSONArray(sessionHashes))
             .put("password", password)
-        if (!mfa.isNullOrEmpty()) payload.put("code", mfa)
 
-        val request = Request.Builder()
+        // First attempt: no MFA header. Discord either accepts or hands us a ticket.
+        val firstTry = postLogout(payload, mfaToken = null)
+        if (firstTry.success) return KickResult(true, "ok")
+
+        // 60008 ⇒ MFA required; the response body carries an mfa.ticket.
+        val mfa = firstTry.mfaTicket
+        if (mfa != null && !totpCode.isNullOrEmpty()) {
+            val mfaToken = finishMfa(mfa, totpCode)
+            if (mfaToken == null) return KickResult(false, "code 2FA invalide ou expiré")
+            val secondTry = postLogout(payload, mfaToken = mfaToken)
+            if (secondTry.success) return KickResult(true, "ok (MFA)")
+            return KickResult(false, parseError(secondTry.status, secondTry.body))
+        }
+        return KickResult(false, parseError(firstTry.status, firstTry.body))
+    }
+
+    private data class LogoutResponse(
+        val success: Boolean,
+        val status: Int,
+        val body: String,
+        val mfaTicket: String?,
+    )
+
+    private fun postLogout(payload: JSONObject, mfaToken: String?): LogoutResponse {
+        val builder = Request.Builder()
             .url("https://discord.com/api/v9/auth/sessions/logout")
             .post(payload.toString().toRequestBody("application/json".toMediaType()))
             .header("Authorization", token)
-            .build()
+        if (!mfaToken.isNullOrEmpty()) builder.header("X-Discord-MFA-Authorization", mfaToken)
 
+        return try {
+            http.newCall(builder.build()).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                Log.i(TAG, "logout status=${response.code} body=$body")
+                val ticket = parseMfaTicket(body)
+                LogoutResponse(response.isSuccessful, response.code, body, ticket)
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "logout POST failed", e)
+            LogoutResponse(false, -1, "", null)
+        }
+    }
+
+    private fun parseMfaTicket(body: String): String? = try {
+        JSONObject(body).optJSONObject("mfa")?.optString("ticket")?.takeIf { it.isNotEmpty() }
+    } catch (_: Throwable) { null }
+
+    /** POST /mfa/finish → returns a short-lived MFA token, or null on failure. */
+    private fun finishMfa(ticket: String, totpCode: String): String? {
+        val payload = JSONObject()
+            .put("ticket", ticket)
+            .put("mfa_type", "totp")
+            .put("data", totpCode)
+            .toString()
+            .toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("https://discord.com/api/v9/mfa/finish")
+            .post(payload)
+            .header("Authorization", token)
+            .build()
         return try {
             http.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: ""
-                Log.i(TAG, "kick status=${response.code} body=$body")
-                if (response.isSuccessful) KickResult(true, "ok")
-                else KickResult(false, parseError(response.code, body))
+                Log.i(TAG, "mfa/finish status=${response.code} body=$body")
+                if (response.isSuccessful) JSONObject(body).optString("token").takeIf { it.isNotEmpty() } else null
             }
         } catch (e: Throwable) {
-            Log.e(TAG, "kick failed", e)
-            KickResult(false, "réseau: ${e.message}")
+            Log.e(TAG, "mfa/finish failed", e)
+            null
         }
     }
 
