@@ -6,10 +6,8 @@
 
 import { OptionType } from "../lib/commands";
 import { logger } from "../lib/logger";
-import { find } from "../lib/metro";
 import { definePlugin } from "../lib/plugins";
 import { getUserToken } from "../lib/token";
-import { httpFilter } from "../lib/http";
 
 // Pomelo (new-style Discord usernames) allow lowercase letters, digits, "." and "_".
 const USERNAME_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_.";
@@ -33,49 +31,34 @@ function isValidUsername(name: string): string | null {
 let loggedShape = false;
 
 async function checkAvailability(username: string): Promise<"available" | "taken" | "rate-limited" | "error"> {
-    const http = find(httpFilter);
-    if (!http) {
-        logger.error("checkname: HTTP module not found");
+    const token = getUserToken();
+    if (!token) {
+        logger.error("checkname: token not found");
         return "error";
     }
     try {
-        const response = await http.post({
-            url: "/users/@me/pomelo-attempt",
-            body: { username },
-            oldFormErrors: true,
+        const response = await fetch("https://discord.com/api/v9/users/@me/pomelo-attempt", {
+            method: "POST",
+            headers: {
+                "Authorization": token,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ username }),
         });
+        if (response.status === 429) return "rate-limited";
+        const body = await response.json().catch(() => ({}));
         if (!loggedShape) {
             loggedShape = true;
-            logger.log("checkname: response shape:", {
-                status: response?.status,
-                ok: response?.ok,
-                hasBody: response?.body !== undefined,
-                bodyKeys: response?.body ? Object.keys(response.body).join(",") : "no body",
-                body: response?.body,
-            });
+            logger.log(`checkname: status=${response.status}, body=${JSON.stringify(body)}`);
         }
-        if (response?.status === 429) return "rate-limited";
-        const body = response?.body ?? {};
-        // Discord sometimes nests the answer differently; check a few shapes.
         if (typeof body.taken === "boolean") return body.taken ? "taken" : "available";
-        if (response?.status === 204 || response?.status === 200) return "available";
-        if (response?.status === 400) return "taken"; // validation error = username rejected / reserved
+        if (response.status === 200 || response.status === 204) return "available";
         return "error";
     } catch (e: any) {
         if (!loggedShape) {
             loggedShape = true;
-            logger.log("checkname: threw:", {
-                status: e?.status,
-                message: String(e?.message ?? e),
-                keys: e && typeof e === "object" ? Object.keys(e).join(",") : "n/a",
-                body: e?.body,
-            });
+            logger.log("checkname: fetch threw:", String(e?.message ?? e));
         }
-        if (e?.status === 429) return "rate-limited";
-        // Discord's HTTP client throws on non-2xx with the response attached.
-        const body = e?.body ?? {};
-        if (typeof body.taken === "boolean") return body.taken ? "taken" : "available";
-        if (e?.status === 400) return "taken";
         return "error";
     }
 }
