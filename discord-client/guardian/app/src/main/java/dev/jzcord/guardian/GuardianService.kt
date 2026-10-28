@@ -131,14 +131,15 @@ class GuardianService : Service() {
             Log.w(TAG, "NEW SESSION detected: $hash from $os / $location")
             alertNewSession("Nouvelle session détectée : $os ($location)")
 
-            val ok = gateway?.kickSessions(listOf(hash), prefs.password) == true
-            if (ok) {
+            val result = gateway?.kickSessions(listOf(hash), prefs.password, prefs.totpSecret.takeIf { it.isNotEmpty() }?.let { Totp.generate(it) })
+            if (result?.success == true) {
                 lastKickCount++
                 alertNewSession("✅ Session étrangère virée ($os / $location)")
                 Log.i(TAG, "kicked $hash")
             } else {
-                alertNewSession("❌ VIRAGE RATÉ — mdp invalide ? Ouvre Guardian et re-colle ton mot de passe.")
-                Log.w(TAG, "FAILED to kick $hash")
+                val reason = result?.reason ?: "erreur inconnue"
+                alertNewSession("❌ VIRAGE RATÉ — $reason")
+                Log.w(TAG, "FAILED to kick $hash: $reason")
                 // Mark it as known anyway so we don't spam alerts.
                 knownHashes.add(hash)
             }

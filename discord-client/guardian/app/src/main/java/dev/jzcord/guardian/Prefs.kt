@@ -23,6 +23,11 @@ class Prefs private constructor(context: Context) {
         get() = sp.getBoolean(KEY_ENABLED, false)
         set(value) = sp.edit().putBoolean(KEY_ENABLED, value).apply()
 
+    /** Optional: user's TOTP secret, so Guardian can send 2FA codes when kicking. */
+    var totpSecret: String
+        get() = sp.getString(KEY_TOTP, "") ?: ""
+        set(value) = sp.edit().putString(KEY_TOTP, value).apply()
+
     /** Hashes of sessions seen on first connect so new strangers stand out. */
     var knownSessionHashes: Set<String>
         get() = sp.getStringSet(KEY_KNOWN, emptySet()) ?: emptySet()
@@ -35,6 +40,7 @@ class Prefs private constructor(context: Context) {
         private const val KEY_PASSWORD = "password"
         private const val KEY_ENABLED = "enabled"
         private const val KEY_KNOWN = "known_session_hashes"
+        private const val KEY_TOTP = "totp_secret"
 
         @Volatile private var instance: Prefs? = null
         fun get(context: Context): Prefs =

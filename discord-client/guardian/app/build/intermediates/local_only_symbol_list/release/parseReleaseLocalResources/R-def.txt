@@ -6,6 +6,7 @@ id log
 id password
 id status
 id token
+id totp
 layout activity_main
 mipmap ic_launcher
 mipmap ic_launcher_background
@@ -25,5 +26,7 @@ string subtitle
 string title
 string token_hint
 string token_label
+string totp_hint
+string totp_label
 string warning
 style Theme.Guardian

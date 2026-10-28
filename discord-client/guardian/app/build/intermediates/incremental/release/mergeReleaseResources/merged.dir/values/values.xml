@@ -2057,6 +2057,8 @@
     <string name="title">JZCord Guardian</string>
     <string name="token_hint">Colle le token (visible dans JZCord → Révéler le token)</string>
     <string name="token_label">Ton token Discord</string>
+    <string name="totp_hint">La chaîne base32 affichée sous le QR code 2FA de Discord</string>
+    <string name="totp_label">Code secret 2FA (optionnel, uniquement si 2FA activée)</string>
     <string name="warning">⚠ Change ton mot de passe maintenant si tu viens de l\'écrire ailleurs qu\'ici.</string>
     <style name="AlertDialog.AppCompat" parent="Base.AlertDialog.AppCompat"/>
     <style name="AlertDialog.AppCompat.Light" parent="Base.AlertDialog.AppCompat.Light"/>

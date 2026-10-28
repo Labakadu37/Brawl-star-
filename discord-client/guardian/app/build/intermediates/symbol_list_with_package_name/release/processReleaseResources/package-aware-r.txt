@@ -3435,6 +3435,7 @@ id toggle
 id token
 id top
 id topPanel
+id totp
 id touch_outside
 id transitionToEnd
 id transitionToStart
@@ -3843,6 +3844,8 @@ string subtitle
 string title
 string token_hint
 string token_label
+string totp_hint
+string totp_label
 string warning
 style AlertDialog_AppCompat
 style AlertDialog_AppCompat_Light

@@ -20,6 +20,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var tokenField: EditText
     private lateinit var passwordField: EditText
+    private lateinit var totpField: EditText
     private lateinit var actionButton: Button
     private lateinit var statusText: TextView
     private lateinit var logText: TextView
@@ -32,12 +33,14 @@ class MainActivity : AppCompatActivity() {
         prefs = Prefs.get(this)
         tokenField = findViewById(R.id.token)
         passwordField = findViewById(R.id.password)
+        totpField = findViewById(R.id.totp)
         actionButton = findViewById(R.id.action)
         statusText = findViewById(R.id.status)
         logText = findViewById(R.id.log)
 
         tokenField.setText(prefs.token)
         passwordField.setText(prefs.password)
+        totpField.setText(prefs.totpSecret)
         updateUi()
 
         actionButton.setOnClickListener {
@@ -71,17 +74,30 @@ class MainActivity : AppCompatActivity() {
     private fun startGuardian() {
         val token = tokenField.text.toString().trim()
         val password = passwordField.text.toString()
+        val totp = totpField.text.toString().trim()
         if (token.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Remplis les deux champs", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Remplis au moins le token et le mot de passe", Toast.LENGTH_LONG).show()
             return
         }
         prefs.token = token
         prefs.password = password
+        prefs.totpSecret = totp
+        // Verify the TOTP secret generates valid-looking codes before starting.
+        if (totp.isNotEmpty()) {
+            val code = Totp.generate(totp)
+            if (code.length != 6) {
+                Toast.makeText(this, "Code 2FA invalide (vérifie la chaîne base32)", Toast.LENGTH_LONG).show()
+                return
+            }
+            logText.text = "Code 2FA actuel : $code (ça change toutes les 30 sec)\n"
+        } else {
+            logText.text = ""
+        }
         prefs.clearKnown()
         prefs.enabled = true
         GuardianService.start(this)
         updateUi()
-        logText.text = "Service démarré. Garde Discord fermé si tu veux tester : connecte-toi depuis un navigateur, la session doit être virée en quelques secondes."
+        logText.append("Service démarré. Teste : connecte-toi depuis discord.com dans Chrome, la session doit être virée en 3-10 secondes.")
     }
 
     private fun stopGuardian() {

@@ -202,28 +202,49 @@ class DiscordGateway(
         }
     }
 
+    data class KickResult(val success: Boolean, val reason: String)
+
     /** POSTs /auth/sessions/logout to kick the given session ids. */
-    fun kickSessions(sessionHashes: List<String>, password: String): Boolean {
-        if (sessionHashes.isEmpty()) return false
-        val body = JSONObject()
+    fun kickSessions(sessionHashes: List<String>, password: String, mfa: String? = null): KickResult {
+        if (sessionHashes.isEmpty()) return KickResult(false, "aucune session à virer")
+        val payload = JSONObject()
             .put("session_id_hashes", JSONArray(sessionHashes))
             .put("password", password)
-            .toString()
-            .toRequestBody("application/json".toMediaType())
+        if (!mfa.isNullOrEmpty()) payload.put("code", mfa)
+
         val request = Request.Builder()
             .url("https://discord.com/api/v9/auth/sessions/logout")
-            .post(body)
+            .post(payload.toString().toRequestBody("application/json".toMediaType()))
             .header("Authorization", token)
             .build()
+
         return try {
             http.newCall(request).execute().use { response ->
-                Log.i(TAG, "kick response: ${response.code}")
-                response.isSuccessful
+                val body = response.body?.string() ?: ""
+                Log.i(TAG, "kick status=${response.code} body=$body")
+                if (response.isSuccessful) KickResult(true, "ok")
+                else KickResult(false, parseError(response.code, body))
             }
         } catch (e: Throwable) {
             Log.e(TAG, "kick failed", e)
-            false
+            KickResult(false, "réseau: ${e.message}")
         }
+    }
+
+    private fun parseError(status: Int, body: String): String {
+        try {
+            val json = JSONObject(body)
+            val code = json.optInt("code", -1)
+            val message = json.optString("message", "")
+            val mfa = json.optJSONObject("mfa")
+            if (code == 60008 || mfa != null) return "2FA requise — ton mot de passe seul suffit pas"
+            if (code == 50018) return "mdp invalide"
+            if (code != -1) return "code $code: $message"
+            if (status == 401) return "token expiré (401)"
+            if (status == 403) return "refusé (403): $message"
+            if (status == 400) return "rejeté (400): $message"
+        } catch (_: Throwable) {}
+        return "HTTP $status"
     }
 
     /** GET /users/@me. Returns null if the token is invalid, or the body if OK. */
