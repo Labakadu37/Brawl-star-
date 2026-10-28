@@ -1,6 +1,7 @@
 import { registerPlugin } from "../lib/plugins";
 import accountTools from "./accountTools";
 import alwaysAnimate from "./alwaysAnimate";
+import antiTokenGrab from "./antiTokenGrab";
 import clearUrls from "./clearUrls";
 import devTools from "./devTools";
 import experiments from "./experiments";
@@ -17,6 +18,7 @@ import themes from "./themes";
 import translate from "./translate";
 
 const builtinPlugins = [
+    antiTokenGrab,
     messageLogger,
     showHiddenChannels,
     platformIndicators,
