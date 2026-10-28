@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">JZCord Guardian</string>
+    <string name="notification_channel">Protection JZCord</string>
+    <string name="notification_text">Surveillance des sessions Discord en cours</string>
+    <string name="notification_title">🛡 JZCord Guardian actif</string>
+    <string name="password_hint">Reste sur l\'appareil, jamais envoyé ailleurs</string>
+    <string name="password_label">Ton mot de passe Discord</string>
+    <string name="start">Démarrer la protection</string>
+    <string name="status_off">🔴 Protection désactivée</string>
+    <string name="status_on">🟢 Protection active — Discord peut être fermé</string>
+    <string name="stop">Arrêter la protection</string>
+    <string name="subtitle">Protection 24/7 contre les prises de compte</string>
+    <string name="title">JZCord Guardian</string>
+    <string name="token_hint">Colle le token (visible dans JZCord → Révéler le token)</string>
+    <string name="token_label">Ton token Discord</string>
+    <string name="warning">⚠ Change ton mot de passe maintenant si tu viens de l\'écrire ailleurs qu\'ici.</string>
+    <style name="Theme.Guardian" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#ff0a8c</item>
+        <item name="colorOnPrimary">#ffffff</item>
+    </style>
+</resources>

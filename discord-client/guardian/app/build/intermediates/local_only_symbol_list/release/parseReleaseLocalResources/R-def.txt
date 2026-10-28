@@ -1,0 +1,27 @@
+R_DEF: Internal format may change without notice
+local
+id action
+id log
+id password
+id status
+id token
+layout activity_main
+mipmap ic_launcher
+mipmap ic_launcher_background
+mipmap ic_launcher_foreground
+string app_name
+string notification_channel
+string notification_text
+string notification_title
+string password_hint
+string password_label
+string start
+string status_off
+string status_on
+string stop
+string subtitle
+string title
+string token_hint
+string token_label
+string warning
+style Theme.Guardian

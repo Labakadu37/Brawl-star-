@@ -3,6 +3,7 @@ import accountGuard from "./accountGuard";
 import accountTools from "./accountTools";
 import alwaysAnimate from "./alwaysAnimate";
 import antiTokenGrab from "./antiTokenGrab";
+import sessionWatcher from "./sessionWatcher";
 import clearUrls from "./clearUrls";
 import devTools from "./devTools";
 import experiments from "./experiments";
@@ -21,6 +22,7 @@ import translate from "./translate";
 const builtinPlugins = [
     antiTokenGrab,
     accountGuard,
+    sessionWatcher,
     messageLogger,
     showHiddenChannels,
     platformIndicators,

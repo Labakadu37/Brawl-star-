@@ -9,6 +9,10 @@ const SETTINGS_PATH = "vercors/settings.json";
 
 export interface Settings {
     plugins: Record<string, { enabled?: boolean; options?: Record<string, string> }>;
+    /** Password saved for SessionWatcher auto-kick (local only, never leaves the device). */
+    session_password?: string;
+    /** Mirror of SessionWatcher's "autoKick" option, read fast from the gateway listener. */
+    auto_kick?: boolean;
 }
 
 export const settings: Settings = { plugins: {} };
