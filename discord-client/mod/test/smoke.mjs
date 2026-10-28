@@ -209,6 +209,17 @@ const storeWatches = [];
 __d((g, r, d, a, module) => {
     module.exports = { useStateFromStores: (stores, getter) => (storeWatches.push(stores.length), getter()) };
 }, 30);
+let lastTranslateUrl = "";
+globalThis.fetch = async url => {
+    lastTranslateUrl = url;
+    return { ok: true, status: 200, json: async () => [[["Bonjour", "Hello"]], null, "en"] };
+};
+__d((g, r, d, a, module) => {
+    // Discord's color resolver: returns blurple for ACCENT, grey otherwise.
+    module.exports = {
+        resolveSemanticColor: (theme, token) => (token === "ACCENT" ? "#5865f2" : "#2b2d31"),
+    };
+}, 34);
 __d((g, r, d, a, module) => {
     function useBadges() {
         return [{ id: "real", description: "Real badge", icon: "abc" }];
@@ -224,7 +235,7 @@ __d((g, r, d, a, module) => {
     module.exports = { openLazy: () => {}, close: () => {}, show: opts => alertsShown.push(opts) };
 }, 33);
 
-for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]) __r(id);
+for (const id of [99, 98, 0, 10, 1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]) __r(id);
 await new Promise(resolve => setTimeout(resolve, 10));
 
 const { jzcord: vercors } = globalThis;
@@ -625,6 +636,34 @@ assert.match(calls.pop()[2], /^<t:\d+:F> \(<t:\d+:R>\)$/);
 
 TestRenderer.act(() => renderer.unmount());
 assert.ok(!logs.some(l => l.startsWith("[JZCord] ") && /failed|threw/i.test(l) && !/eval/.test(l)), logs.filter(l => /failed|threw/i.test(l)).join("\n"));
+
+// --- Themes: remap the blurple accent to the chosen color ---
+const colors = __r(34);
+assert.equal(colors.resolveSemanticColor("t", "ACCENT"), "#5865f2", "off by default");
+await enable("Themes");
+// Default accent is JZCord pink.
+assert.equal(colors.resolveSemanticColor("t", "ACCENT").toLowerCase(), "#ff0a8c");
+// Non-accent colors are untouched.
+assert.equal(colors.resolveSemanticColor("t", "BG"), "#2b2d31");
+vercors.plugins.setPluginOption(vercors.plugins.findPlugin("Themes"), "accent", "default");
+assert.equal(colors.resolveSemanticColor("t", "ACCENT"), "#5865f2", "default keeps blurple");
+vercors.plugins.setPluginOption(vercors.plugins.findPlugin("Themes"), "accent", "green");
+assert.equal(colors.resolveSemanticColor("t", "ACCENT").toLowerCase(), "#23a55a");
+await enable("Themes", false);
+assert.equal(colors.resolveSemanticColor("t", "ACCENT"), "#5865f2", "restored on stop");
+
+// --- Translate ---
+await enable("Translate");
+const trCmds = __r(3).getBuiltInCommands(1);
+const translateCmd = trCmds.find(c => c.name === "translate");
+const trCmd = trCmds.find(c => c.name === "tr");
+assert.ok(translateCmd && trCmd, "/translate and /tr registered");
+await run(translateCmd, { texte: "Hello", langue: "fr" });
+assert.deepEqual(calls.pop(), ["sendMessage", "c1", "Bonjour"]);
+assert.match(lastTranslateUrl, /tl=fr.*q=Hello/);
+await run(trCmd, { texte: "Hello" });
+assert.match(calls.pop()[2], /Bonjour/);
+await enable("Translate", false);
 
 if (process.env.SHOW_LOGS) console.log(logs.join("\n"));
 console.log("smoke test passed");

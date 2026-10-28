@@ -45,6 +45,8 @@ plugins.
 | MessageLogger | ❌ | Garde les messages supprimés (surlignés en rouge) et les anciennes versions des messages modifiés (✏️), jusqu'au redémarrage |
 | ShowHiddenChannels | ❌ | Affiche les salons auxquels tu n'as pas accès ; les ouvrir affiche juste leur nom et leur sujet |
 | PlatformIndicators | ❌ | Badges PC/téléphone/navigateur/console (couleur du statut) dans le chat, les profils, et à la place du rond de statut sur l'avatar (option) |
+| Themes | ❌ | Change la couleur d'accent de tout Discord (rose JZCord, rouge, vert…) |
+| Translate | ❌ | `/translate` (envoie) et `/tr` (visible par toi) pour traduire un texte |
 | FakeNitro | ❌ | Emojis animés et d'autres serveurs sans Nitro (envoyés en image) |
 | ShowMeYourName | ❌ | « Surnom (pseudo) » dans le chat |
 | NoReplyMention | ❌ | Les réponses ne mentionnent plus la personne par défaut |

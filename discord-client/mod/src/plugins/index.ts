@@ -12,11 +12,15 @@ import platformIndicators from "./platformIndicators";
 import showHiddenChannels from "./showHiddenChannels";
 import showMeYourName from "./showMeYourName";
 import silentTyping from "./silentTyping";
+import themes from "./themes";
+import translate from "./translate";
 
 const builtinPlugins = [
     messageLogger,
     showHiddenChannels,
     platformIndicators,
+    themes,
+    translate,
     fakeNitro,
     showMeYourName,
     noReplyMention,
