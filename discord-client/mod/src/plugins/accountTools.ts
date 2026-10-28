@@ -5,6 +5,7 @@
 //                                and reports whether it is available
 
 import { OptionType } from "../lib/commands";
+import { logger } from "../lib/logger";
 import { find } from "../lib/metro";
 import { definePlugin } from "../lib/plugins";
 import { getUserToken } from "../lib/token";
@@ -29,22 +30,52 @@ function isValidUsername(name: string): string | null {
     return null;
 }
 
+let loggedShape = false;
+
 async function checkAvailability(username: string): Promise<"available" | "taken" | "rate-limited" | "error"> {
     const http = find(httpFilter);
-    if (!http) return "error";
+    if (!http) {
+        logger.error("checkname: HTTP module not found");
+        return "error";
+    }
     try {
         const response = await http.post({
             url: "/users/@me/pomelo-attempt",
             body: { username },
             oldFormErrors: true,
         });
+        if (!loggedShape) {
+            loggedShape = true;
+            logger.log("checkname: response shape:", {
+                status: response?.status,
+                ok: response?.ok,
+                hasBody: response?.body !== undefined,
+                bodyKeys: response?.body ? Object.keys(response.body).join(",") : "no body",
+                body: response?.body,
+            });
+        }
         if (response?.status === 429) return "rate-limited";
         const body = response?.body ?? {};
-        // Discord returns `taken: true/false` on success.
+        // Discord sometimes nests the answer differently; check a few shapes.
         if (typeof body.taken === "boolean") return body.taken ? "taken" : "available";
+        if (response?.status === 204 || response?.status === 200) return "available";
+        if (response?.status === 400) return "taken"; // validation error = username rejected / reserved
         return "error";
     } catch (e: any) {
-        if (e?.status === 429 || /rate.?limit/i.test(String(e?.message ?? ""))) return "rate-limited";
+        if (!loggedShape) {
+            loggedShape = true;
+            logger.log("checkname: threw:", {
+                status: e?.status,
+                message: String(e?.message ?? e),
+                keys: e && typeof e === "object" ? Object.keys(e).join(",") : "n/a",
+                body: e?.body,
+            });
+        }
+        if (e?.status === 429) return "rate-limited";
+        // Discord's HTTP client throws on non-2xx with the response attached.
+        const body = e?.body ?? {};
+        if (typeof body.taken === "boolean") return body.taken ? "taken" : "available";
+        if (e?.status === 400) return "taken";
         return "error";
     }
 }
