@@ -1,4 +1,5 @@
 import { registerPlugin } from "../lib/plugins";
+import accountTools from "./accountTools";
 import alwaysAnimate from "./alwaysAnimate";
 import clearUrls from "./clearUrls";
 import devTools from "./devTools";
@@ -29,6 +30,7 @@ const builtinPlugins = [
     noTrack,
     clearUrls,
     moreCommands,
+    accountTools,
     experiments,
     devTools,
 ];
