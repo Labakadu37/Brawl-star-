@@ -29,7 +29,7 @@ function isValidUsername(name: string): string | null {
     return null;
 }
 
-async function checkAvailability(username: string): Promise<"available" | "taken" | "error"> {
+async function checkAvailability(username: string): Promise<"available" | "taken" | "rate-limited" | "error"> {
     const http = find(httpFilter);
     if (!http) return "error";
     try {
@@ -38,13 +38,39 @@ async function checkAvailability(username: string): Promise<"available" | "taken
             body: { username },
             oldFormErrors: true,
         });
+        if (response?.status === 429) return "rate-limited";
         const body = response?.body ?? {};
         // Discord returns `taken: true/false` on success.
         if (typeof body.taken === "boolean") return body.taken ? "taken" : "available";
         return "error";
-    } catch {
+    } catch (e: any) {
+        if (e?.status === 429 || /rate.?limit/i.test(String(e?.message ?? ""))) return "rate-limited";
         return "error";
     }
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const MAX_ATTEMPTS = 200;
+const DELAY_MS = 150; // light pacing to avoid instant rate-limit
+
+/** Keeps generating random names of `length` until one is available. */
+async function hunt(length: number, onProgress: (text: string) => void): Promise<void> {
+    const tried = new Set<string>();
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        let name = randomUsername(length);
+        for (let i = 0; i < 10 && tried.has(name); i++) name = randomUsername(length);
+        tried.add(name);
+
+        const status = await checkAvailability(name);
+        if (status === "available") return onProgress(`✅ \`${name}\` est **libre** (après ${attempt} essai${attempt > 1 ? "s" : ""})`);
+        if (status === "rate-limited") return onProgress(`⚠ Rate-limit de Discord atteint après ${attempt} essai${attempt > 1 ? "s" : ""} — ré-essaie dans ~30s`);
+        if (status === "error") return onProgress(`⚠ Erreur réseau après ${attempt} essai${attempt > 1 ? "s" : ""} — \`${name}\` n'a pas pu être testé`);
+
+        if (attempt % 25 === 0) onProgress(`🔎 ${attempt} essais, aucun libre pour l'instant…`);
+        await sleep(DELAY_MS);
+    }
+    onProgress(`⚠ ${MAX_ATTEMPTS} essais sans trouver — relance la commande`);
 }
 
 export default definePlugin({
@@ -80,15 +106,12 @@ export default definePlugin({
 
         registerCommand({
             name: "searchname",
-            description: "Génère un pseudo aléatoire et dit s'il est libre",
+            description: "Cherche en boucle un pseudo libre de la longueur donnée",
             options: [{ name: "longueur", description: "Nombre de caractères (2–32)", type: OptionType.INTEGER, required: true }],
             execute: async ({ longueur }, { reply }) => {
-                const name = randomUsername(Number(longueur));
-                reply(`🎲 Je teste \`${name}\`…`);
-                const status = await checkAvailability(name);
-                if (status === "available") reply(`✅ \`${name}\` est **libre** — relance la commande pour en essayer un autre`);
-                else if (status === "taken") reply(`❌ \`${name}\` est **pris** — relance la commande pour en essayer un autre`);
-                else reply(`⚠ Je n'ai pas pu vérifier \`${name}\` (erreur réseau ou rate-limit)`);
+                const length = Math.max(2, Math.min(32, Math.floor(Number(longueur)) || 4));
+                reply(`🔎 Je cherche un pseudo libre de ${length} caractères (max 200 essais)…`);
+                await hunt(length, reply);
             },
         });
     },
