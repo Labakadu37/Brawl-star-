@@ -1,0 +1,13 @@
+const {chromium}=require('playwright');const fs=require('fs');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:1079,height:538}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.addInitScript(()=>{window.__MENU_CONTENT__={locales:{en:{'module.aimbot':'Aimbot','module.autoDodge':'Auto Dodge','module.killAura':'Kill Aura'},ar:{'module.aimbot':'الإيمبوت','module.autoDodge':'التفادي التلقائي','module.killAura':'هالة القتل'},fr:{'module.aimbot':'Visée auto'}}}});
+const bg='data:image/jpeg;base64,'+fs.readFileSync(process.argv[3]).toString('base64');
+await p.goto('file://'+process.cwd()+'/out/menu.html');await p.waitForTimeout(600);
+await p.evaluate(bg=>{document.documentElement.style.setProperty('background','url('+bg+') center/cover','important');window.bsMenu.setExpanded(true)},bg);await p.waitForTimeout(500);
+console.log('names:',await p.evaluate(()=>[...document.querySelector('bs-menu').shadowRoot.querySelectorAll('.tile-name')].slice(0,5).map(e=>e.textContent).join(' | ')));
+await p.evaluate(()=>window.bsMenu.setLocale('ar'));await p.waitForTimeout(300);
+console.log('after choosing ar:',await p.evaluate(()=>[...document.querySelector('bs-menu').shadowRoot.querySelectorAll('.tile-name')].slice(0,3).map(e=>e.textContent).join(' | ')));
+await p.evaluate(()=>window.bsMenu.setLocale('en'));await p.waitForTimeout(300);
+console.log('back to en:',await p.evaluate(()=>[...document.querySelector('bs-menu').shadowRoot.querySelectorAll('.tile-name')].slice(0,3).map(e=>e.textContent).join(' | ')));
+await p.waitForTimeout(900);await p.screenshot({path:process.argv[2]});console.log('errors:',errs.length?errs:'none');await b.close()})();
