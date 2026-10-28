@@ -1,3 +1,4 @@
+import { guardIsUnlocked, guardSecondsLeft, unlockFor } from "../plugins/accountGuard";
 import { LOGO_URL } from "../lib/branding";
 import { getLogHistory } from "../lib/logger";
 import { filters, find } from "../lib/metro";
@@ -134,6 +135,19 @@ export function PluginsPage() {
                     </Text>
                 )}
                 <Row label="📋 Copier le token" onPress={copyToken} />
+            </Group>
+            <Text style={{ height: 16 }} />
+            <Group title="Protection AccountGuard">
+                <Text style={{ color: MUTED, fontSize: 11, paddingVertical: 4 }}>
+                    Tant que la protection est active, personne ne peut changer ton mot de passe, email ou 2FA — même avec ton token.
+                </Text>
+                <Row
+                    label={guardIsUnlocked() ? `🔓 Protection levée (${guardSecondsLeft()}s)` : "🔓 Lever la protection 60s"}
+                    onPress={() => {
+                        unlockFor(60);
+                        rerender(n => n + 1);
+                    }}
+                />
             </Group>
             <Text style={{ height: 16 }} />
             <Group title="Journal">
