@@ -4,6 +4,7 @@ import { filters, find } from "../lib/metro";
 import { getPluginOption, getPlugins, isRunning, setPluginEnabled, setPluginOption } from "../lib/plugins";
 import { findComponent, getReactNative, h, isComponent, useEffect, useState } from "../lib/react";
 import { promptRestart, reloadDiscord } from "../lib/restart";
+import { getUserToken, maskToken } from "../lib/token";
 
 const MUTED = "#949ba4";
 const TEXT = "#dbdee1";
@@ -51,6 +52,7 @@ export function PluginsPage() {
 
     const [, rerender] = useState(0);
     const [showLogs, setShowLogs] = useState(false);
+    const [showToken, setShowToken] = useState(false);
 
     const navigation = find(filters.byProps("NavigationContainer", "useNavigation"))?.useNavigation?.();
     useEffect(() => void navigation?.setOptions?.({ title: "JZCord" }), []);
@@ -58,6 +60,13 @@ export function PluginsPage() {
     const copyLogs = () => {
         find(filters.byProps("setString", "getString"))?.setString(getLogHistory());
         ReactNative.ToastAndroid?.show("Journal copié", 0);
+    };
+
+    const token = getUserToken();
+    const copyToken = () => {
+        if (!token) return ReactNative.ToastAndroid?.show("Token introuvable", 0);
+        find(filters.byProps("setString", "getString"))?.setString(token);
+        ReactNative.ToastAndroid?.show("Token copié", 0);
     };
 
     return (
@@ -103,6 +112,28 @@ export function PluginsPage() {
             <Text style={{ height: 16 }} />
             <Group title="Discord">
                 <Row label="🔄 Redémarrer Discord" onPress={() => reloadDiscord()} />
+            </Group>
+            <Text style={{ height: 16 }} />
+            <Group title="Compte">
+                <Row
+                    label={showToken ? "🙈 Masquer le token" : "🔑 Révéler le token"}
+                    onPress={() => setShowToken(v => !v)}
+                />
+                {showToken ? (
+                    <ReactNative.View style={{ paddingVertical: 8 }}>
+                        <Text style={{ color: "#f23f43", fontSize: 11, marginBottom: 6 }}>
+                            ⚠ Ne le montre jamais à personne. Un token = accès total à ton compte sans mot de passe.
+                        </Text>
+                        <Text selectable style={{ color: TEXT, fontFamily: "monospace", fontSize: 11 }}>
+                            {token ?? "Token introuvable"}
+                        </Text>
+                    </ReactNative.View>
+                ) : (
+                    <Text style={{ color: MUTED, fontSize: 11, paddingVertical: 4 }}>
+                        {token ? maskToken(token) : "Token introuvable"}
+                    </Text>
+                )}
+                <Row label="📋 Copier le token" onPress={copyToken} />
             </Group>
             <Text style={{ height: 16 }} />
             <Group title="Journal">
