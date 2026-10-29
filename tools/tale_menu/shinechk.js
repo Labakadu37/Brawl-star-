@@ -1,0 +1,6 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:891,height:411},deviceScaleFactor:3});
+await p.goto('file://'+process.cwd()+'/out/menu.html');await p.waitForTimeout(500);await p.evaluate(()=>window.bsMenu.setExpanded(true));await p.waitForTimeout(500);
+let i=0;for(const t of [300,600,900,1200,1500,1800]){const r=await p.evaluate(t=>{const R=document.querySelector('bs-menu').shadowRoot;const w=R.querySelector('.jz-tw');w.querySelector('.tile-name').textContent='Auto Hypercharge';w.querySelector('.jz-sh b').textContent='Auto Hypercharge';R.getAnimations?0:0;for(const e of [w.querySelector('.jz-sh'),w.querySelector('.jz-sh b'),R.querySelector('.nav-item')])e.getAnimations({subtree:true}).forEach(x=>{x.pause();x.currentTime=t});const n=R.querySelector('.nav-item');n.getAnimations({subtree:true}).forEach(x=>{x.pause();x.currentTime=t});const a=w.getBoundingClientRect(),bb=n.getBoundingClientRect();return {x:Math.min(a.x,bb.x)-4,y:bb.y-4,w:Math.max(a.right,bb.right)-Math.min(a.x,bb.x)+8,h:a.bottom-bb.y+8}},t);
+await p.screenshot({path:'out/sc'+(i++)+'.png',clip:{x:r.x,y:r.y,width:r.w,height:r.h}})}
+await b.close()})();
