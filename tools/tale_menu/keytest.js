@@ -1,0 +1,16 @@
+const {chromium}=require('playwright');const fs=require('fs');const path=require('path');
+(async()=>{const ud=fs.mkdtempSync('/tmp/claude-0/-home-user-Brawl-star-/b3bddd68-5cb9-5bf7-b51b-9e0c225caa68/scratchpad/ud');
+const ctx=await chromium.launchPersistentContext(ud,{viewport:{width:891,height:411},deviceScaleFactor:2});const p=ctx.pages()[0]||await ctx.newPage();
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+const bg='data:image/jpeg;base64,'+fs.readFileSync('out/bg_tgame.jpg').toString('base64');
+const R='document.querySelector("bs-menu").shadowRoot';
+const st=async l=>console.log(l.padEnd(26),await p.evaluate(R=>{const m=document.querySelector('bs-menu'),r=eval(R);const w=r.querySelector('.jz-wm .jz-s .jz-b');return 'locked='+m.hasAttribute('jz-locked')+' wm="'+(w&&w.textContent)+'" msg="'+(r.querySelector('.jz-km')?.textContent||'')+'"'},R));
+const load=async()=>{await p.goto('file://'+process.cwd()+'/out/menu.html');await p.waitForTimeout(1500);await p.evaluate(bg=>document.documentElement.style.setProperty('background','url('+bg+') center/cover','important'),bg)};
+await load();await st('fresh start');
+await p.evaluate(()=>window.bsMenu.setExpanded(true));await p.waitForTimeout(700);await p.screenshot({path:'out/k_locked.png'});
+const type=async k=>{await p.evaluate(([R,k])=>{const i=eval(R).querySelector('.jz-ki');i.value=k;const b=eval(R).querySelector('.jz-kb');for(const t of['pointerdown','pointerup'])b.dispatchEvent(new PointerEvent(t,{bubbles:true,composed:true,pointerId:1,isPrimary:true}))},[R,k]);await p.waitForTimeout(1500)};
+await type('JZS-NOPE-NOPE-NOPE');await st('wrong key');await p.screenshot({path:'out/k_wrong.png'});
+await type('jzs-test-aaaa-bbbb');await p.waitForTimeout(700);await st('good key');await p.screenshot({path:'out/k_ok.png'});
+await load();await st('after reload');
+fs.writeFileSync('out/k_state.txt','ok');
+console.log('errors',errs.length?errs:'none');await ctx.close()})();

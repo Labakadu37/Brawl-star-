@@ -22,3 +22,9 @@ Thumbs.db
 __pycache__/
 *.pyc
 out_user/
+
+# Key bot secrets / data
+bot/.env
+bot/private.pem
+bot/keys.db
+bot/node_modules/

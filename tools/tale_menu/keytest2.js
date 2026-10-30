@@ -1,0 +1,16 @@
+const {chromium}=require('playwright');const fs=require('fs');const {execSync}=require('child_process');
+const sql=q=>execSync(`node -e "const D=require('better-sqlite3');new D('keys.db').prepare(process.argv[1]).run()" "${q}"`,{cwd:'bottest'});
+(async()=>{const mk=async()=>{const ud=fs.mkdtempSync(process.cwd()+'/ud');const c=await chromium.launchPersistentContext(ud,{viewport:{width:891,height:411}});return c};
+const R='document.querySelector("bs-menu").shadowRoot';
+const st=async(p,l)=>console.log(l.padEnd(34),await p.evaluate(R=>{const m=document.querySelector('bs-menu');const w=eval(R).querySelector('.jz-wm .jz-s .jz-b');return 'locked='+m.hasAttribute('jz-locked')+' wm="'+(w&&w.textContent)+'" msg="'+(eval(R).querySelector('.jz-km')?.textContent||'')+'"'},R));
+const load=async p=>{await p.goto('file://'+process.cwd()+'/out/menu.html');await p.waitForTimeout(1500)};
+const act=async(p,k)=>{await p.evaluate(([R,k])=>{const i=eval(R).querySelector('.jz-ki');i.value=k;const b=eval(R).querySelector('.jz-kb');for(const t of['pointerdown','pointerup'])b.dispatchEvent(new PointerEvent(t,{bubbles:true,composed:true,pointerId:1,isPrimary:true}))},[R,k]);await p.waitForTimeout(1500)};
+sql("INSERT INTO keys (key,created_at) VALUES ('JZS-TWOO-AAAA-BBBB',1)");
+const A=await mk(),pa=A.pages()[0];await load(pa);await act(pa,'JZS-TWOO-AAAA-BBBB');await st(pa,'phone A activates');
+const B=await mk(),pb=B.pages()[0];await load(pb);await act(pb,'JZS-TWOO-AAAA-BBBB');await st(pb,'phone B same key');
+sql("UPDATE keys SET revoked=1 WHERE key='JZS-TWOO-AAAA-BBBB'");await load(pa);await pa.waitForTimeout(800);await st(pa,'phone A after revoke+restart');
+sql("UPDATE keys SET revoked=0, device=NULL WHERE key='JZS-TWOO-AAAA-BBBB'");await load(pa);await act(pa,'JZS-TWOO-AAAA-BBBB');await st(pa,'phone A re-activate');
+await pa.route('**/api/**',r=>r.abort());await load(pa);await pa.waitForTimeout(800);await st(pa,'phone A offline (grace)');
+await pa.route('**/api/**',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'ok',sig:'AAAA'})}));
+await pa.evaluate(()=>localStorage.removeItem('jz.key'));await load(pa);await act(pa,'JZS-FAKE-FAKE-FAKE');await st(pa,'fake server says ok (no sig)');
+await A.close();await B.close()})();
