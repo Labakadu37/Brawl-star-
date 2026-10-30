@@ -25,6 +25,7 @@ const db = new Database(path.join(DIR, 'keys.db'));
 db.exec(`CREATE TABLE IF NOT EXISTS keys (
   key TEXT PRIMARY KEY, created_at INTEGER NOT NULL, created_by TEXT,
   device TEXT, used_at INTEGER, last_seen INTEGER, revoked INTEGER NOT NULL DEFAULT 0)`);
+db.exec('CREATE TABLE IF NOT EXISTS join_roles (guild TEXT PRIMARY KEY, role TEXT NOT NULL)');
 
 const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function newKey() {
@@ -99,9 +100,43 @@ const commands = [
     .addStringOption(o => o.setName('filtre').setDescription('Quel type').addChoices(
       { name: 'Toutes', value: 'all' }, { name: 'Libres', value: 'free' },
       { name: 'Utilisees', value: 'used' }, { name: 'Revoquees', value: 'revoked' })),
+  new SlashCommandBuilder().setName('rolejoin').setDescription('Role donne automatiquement aux nouveaux membres')
+    .addSubcommand(s => s.setName('set').setDescription('Choisir le role')
+      .addRoleOption(o => o.setName('role').setDescription('Le role a donner').setRequired(true)))
+    .addSubcommand(s => s.setName('off').setDescription('Desactiver le role automatique'))
+    .addSubcommand(s => s.setName('info').setDescription('Voir le role actuel')),
 ].map(c => c.toJSON());
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// GuildMembers is a privileged intent: enable "Server Members Intent" in the Developer Portal.
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+
+client.on('guildMemberAdd', async member => {
+  const row = db.prepare('SELECT role FROM join_roles WHERE guild = ?').get(member.guild.id);
+  if (!row) return;
+  try { await member.roles.add(row.role, 'rolejoin'); }
+  catch (e) { console.error(`rolejoin: impossible de donner ${row.role} a ${member.user.tag}:`, e.message); }
+});
+
+async function roleJoin(i) {
+  const eph = { flags: MessageFlags.Ephemeral };
+  const sub = i.options.getSubcommand();
+  if (sub === 'off') {
+    db.prepare('DELETE FROM join_roles WHERE guild = ?').run(i.guildId);
+    return i.reply({ content: '✅ Role automatique desactive.', ...eph });
+  }
+  if (sub === 'info') {
+    const row = db.prepare('SELECT role FROM join_roles WHERE guild = ?').get(i.guildId);
+    return i.reply({ content: row ? `Role automatique : <@&${row.role}>` : 'Aucun role automatique.', ...eph });
+  }
+  const role = i.options.getRole('role');
+  const me = await i.guild.members.fetchMe();
+  if (role.managed || role.id === i.guildId) return i.reply({ content: '❌ Ce role ne peut pas etre donne.', ...eph });
+  if (!me.permissions.has('ManageRoles')) return i.reply({ content: '❌ Le bot n a pas la permission **Gerer les roles**.', ...eph });
+  if (me.roles.highest.comparePositionTo(role) <= 0)
+    return i.reply({ content: `❌ Le role du bot doit etre **au-dessus** de ${role} dans Parametres du serveur > Roles.`, ...eph });
+  db.prepare('INSERT INTO join_roles (guild, role) VALUES (?, ?) ON CONFLICT(guild) DO UPDATE SET role = excluded.role').run(i.guildId, role.id);
+  return i.reply({ content: `✅ Les nouveaux membres recevront ${role}.`, ...eph });
+}
 client.once('ready', async () => {
   const rest = new REST().setToken(process.env.DISCORD_TOKEN);
   const appId = String(process.env.DISCORD_CLIENT_ID || '').trim();
@@ -159,6 +194,7 @@ client.on('interactionCreate', async i => {
   }
   if (!i.isChatInputCommand()) return;
   if (!allowed(i)) return i.reply({ content: '⛔ Tu n as pas la permission d utiliser ce bot.', ...eph });
+  if (i.commandName === 'rolejoin') return roleJoin(i);
   const key = norm(i.options.getString('key'));
   const row = key ? db.prepare('SELECT * FROM keys WHERE key = ?').get(key) : null;
   if (key && !row) return i.reply({ content: '❌ Cle introuvable.', ...eph });

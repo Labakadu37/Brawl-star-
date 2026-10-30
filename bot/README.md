@@ -1,6 +1,6 @@
 # JZS key bot
 
-Discord bot (`/genkey`, `/keys`, `/keyinfo`, `/revokekey`, `/unrevokekey`, `/resetkey`) plus the HTTP API the mod menu calls (`/api/activate`, `/api/check`). Every answer is signed with `private.pem`; the menu only trusts answers that verify against the public key built into the APK.
+Discord bot (`/genkey`, `/keys`, `/keyinfo`, `/revokekey`, `/unrevokekey`, `/resetkey`, `/rolejoin`) plus the HTTP API the mod menu calls (`/api/activate`, `/api/check`). Every answer is signed with `private.pem`; the menu only trusts answers that verify against the public key built into the APK.
 
 ## Start
 
@@ -31,3 +31,7 @@ Rebuild the APK with that URL: `JZ_URL=https://... python3 tools/tale_menu/tale_
 ## Keys
 
 `private.pem` signs every answer. Keep it secret and never regenerate it: the APK contains the matching public key, so a new key pair means a new APK.
+
+## /rolejoin
+
+`/rolejoin set role:@Role` gives that role to every new member; `/rolejoin off` disables it; `/rolejoin info` shows it. Requires **Server Members Intent** enabled in the Developer Portal (Bot tab), the bot's **Manage Roles** permission, and the bot's role placed above the chosen role.
